@@ -178,10 +178,12 @@ public:
   Eigen::Map<const Eigen::Array<dolfin::la_index_t, Eigen::Dynamic, 1>>
   cell_dofs(std::size_t cell_index) const
   {
-    const std::size_t index = cell_index * _cell_dimension;
-    dolfin_assert(index + _cell_dimension <= _dofmap.size());
+    const std::size_t index = _offsets[cell_index];
+    const std::size_t dofsize = _offsets[cell_index + 1] - index;
+
+    dolfin_assert(index + dofsize <= _dofmap.size());
     return Eigen::Map<const Eigen::Array<dolfin::la_index_t, Eigen::Dynamic,
-                                         1>>(&_dofmap[index], _cell_dimension);
+                                         1>>(&_dofmap[index], dofsize);
   }
 
   /// Return the dof indices associated with entities of given dimension and
@@ -382,11 +384,11 @@ private:
   // Cell-local-to-dof map (dofs for cell dofmap[i])
   std::vector<dolfin::la_index_t> _dofmap;
 
+  // Index into _dofmap for cell dofmap[i]
+  std::vector<std::uint32_t> _offsets;
+
   // List of global nodes
   std::set<std::size_t> _global_nodes;
-
-  // Cell dimension (fixed for all cells)
-  std::size_t _cell_dimension;
 
   // UFC dof map
   std::shared_ptr<const ufc::dofmap> _ufc_dofmap;

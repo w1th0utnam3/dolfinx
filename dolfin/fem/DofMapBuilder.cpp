@@ -114,9 +114,6 @@ void DofMapBuilder::build(DofMap& dofmap, const Mesh& mesh,
         constrained_domain, bs);
   }
 
-  // Set local (cell) dimension
-  dofmap._cell_dimension = dofmap._ufc_dofmap->num_element_dofs();
-
   // Set global dimension
   dofmap._global_dimension
       = dofmap._ufc_dofmap->global_dimension(dofmap._num_mesh_entities_global);
@@ -247,10 +244,12 @@ void DofMapBuilder::build(DofMap& dofmap, const Mesh& mesh,
 
   // Build flattened dofmap graph
   dofmap._dofmap.clear();
+  dofmap._offsets.resize(1, 0);
   for (auto const& cell_dofs : dofmap_graph)
   {
     dofmap._dofmap.insert(dofmap._dofmap.end(), cell_dofs.begin(),
                           cell_dofs.end());
+    dofmap._offsets.push_back(dofmap._offsets.back() + cell_dofs.size());
   }
 }
 //-----------------------------------------------------------------------------
@@ -350,15 +349,15 @@ void DofMapBuilder::build_sub_map_view(
     }
   }
 
-  // Set local (cell) dimension
-  sub_dofmap._cell_dimension = sub_dofmap._ufc_dofmap->num_element_dofs();
-
   // Construct flattened dofmap
   sub_dofmap._dofmap.clear();
+  sub_dofmap._offsets.resize(1, 0);
   for (auto const& cell_dofs : sub_dofmap_graph)
   {
     sub_dofmap._dofmap.insert(sub_dofmap._dofmap.end(), cell_dofs.begin(),
                               cell_dofs.end());
+    sub_dofmap._offsets.push_back(sub_dofmap._offsets.back()
+                                  + cell_dofs.size());
   }
 }
 //-----------------------------------------------------------------------------
@@ -373,10 +372,9 @@ std::size_t DofMapBuilder::build_constrained_vertex_indices(
 
   // Get vertex sharing information (local index, [(sharing process p,
   // local index on p)])
-  const std::
-      unordered_map<std::uint32_t,
-                    std::vector<std::pair<std::uint32_t, std::uint32_t>>>&
-          shared_vertices
+  const std::unordered_map<
+      std::uint32_t, std::vector<std::pair<std::uint32_t, std::uint32_t>>>&
+      shared_vertices
       = DistributedMeshTools::compute_shared_entities(mesh, 0);
 
   // Mark shared vertices

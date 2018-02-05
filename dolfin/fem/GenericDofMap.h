@@ -48,22 +48,6 @@ public:
   virtual std::int64_t global_dimension() const = 0;
 
   /// Return the dimension of the local finite element function
-  /// space on a cell (deprecated API)
-  std::size_t cell_dimension(std::size_t index) const
-  {
-    // TODO: Add deprecation warning
-    return num_element_dofs(index);
-  }
-
-  /// Return the maximum dimension of the local finite element
-  /// function space (deprecated API)
-  std::size_t max_cell_dimension() const
-  {
-    // TODO: Add deprecation warning
-    return max_element_dofs();
-  }
-
-  /// Return the dimension of the local finite element function
   /// space on a cell
   virtual std::size_t num_element_dofs(std::size_t index) const = 0;
 
@@ -193,5 +177,3 @@ public:
   std::shared_ptr<const SubDomain> constrained_domain;
 };
 }
-
-
