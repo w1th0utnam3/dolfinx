@@ -41,16 +41,16 @@ Expression::~Expression()
   // Do nothing
 }
 //-----------------------------------------------------------------------------
-void Expression::eval(Eigen::Ref<Eigen::VectorXd> values,
-                      Eigen::Ref<const Eigen::VectorXd> x,
+void Expression::eval(Eigen::Ref<EigenRowMatrixXd> values,
+                      Eigen::Ref<const EigenRowMatrixXd> x,
                       const ufc::cell& cell) const
 {
   // Redirect to simple eval
   eval(values, x);
 }
 //-----------------------------------------------------------------------------
-void Expression::eval(Eigen::Ref<Eigen::VectorXd> values,
-                      Eigen::Ref<const Eigen::VectorXd> x) const
+void Expression::eval(Eigen::Ref<EigenRowMatrixXd> values,
+                      Eigen::Ref<const EigenRowMatrixXd> x) const
 {
   if (_eval)
   {
@@ -133,9 +133,8 @@ void Expression::restrict(double* w, const fem::FiniteElement& element,
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
       eval_values(ndofs, vs);
 
-  // FIXME: should evaluate all points at once (using RowMajor matrix)
-  for (unsigned int i = 0; i != ndofs; ++i)
-    eval(eval_values.row(i), eval_points.row(i), ufc_cell);
+  // Evaluate all points in one call
+  eval(eval_values, eval_points, ufc_cell);
 
   // Transpose for vector values
   // FIXME: remove need for this - needs work in ffc
