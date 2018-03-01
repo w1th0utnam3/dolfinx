@@ -103,12 +103,15 @@ Then follows the definition of the coefficient functions (for
    public:
      Source() : function::Expression({}) {}
 
-     void eval(Eigen::Ref<Eigen::VectorXd> values,
-            Eigen::Ref<const Eigen::VectorXd> x) const
+     void eval(Eigen::Ref<EigenRowMatrixXd> values,
+            Eigen::Ref<const EigenRowMatrixXd> x) const
      {
-       double dx = x[0] - 0.5;
-       double dy = x[1] - 0.5;
-       values[0] = 10*exp(-(dx*dx + dy*dy) / 0.02);
+     for (unsigned int i = 0; i != x.rows(); ++i)
+       {
+         double dx = x(i, 0) - 0.5;
+         double dy = x(i, 1) - 0.5;
+         values(i, 0) = 10*exp(-(dx*dx + dy*dy) / 0.02);
+       }
      }
    };
 
@@ -118,10 +121,11 @@ Then follows the definition of the coefficient functions (for
    public:
      dUdN() : function::Expression({}) {}
 
-     void eval(Eigen::Ref<Eigen::VectorXd> values,
-            Eigen::Ref<const Eigen::VectorXd> x) const
+     void eval(Eigen::Ref<EigenRowMatrixXd> values,
+            Eigen::Ref<const EigenRowMatrixXd> x) const
      {
-       values[0] = sin(5*x[0]);
+       for (unsigned int i = 0; i != x.rows(); ++i)
+           values(i, 0) = sin(5*x(i, 0));
      }
    };
 
@@ -134,9 +138,14 @@ boundary condition should be applied.
    // Sub domain for Dirichlet boundary condition
    class DirichletBoundary : public mesh::SubDomain
    {
-     bool inside(Eigen::Ref<const Eigen::VectorXd> x, bool on_boundary) const
+     Eigen::Matrix<bool, Eigen::Dynamic, 1>
+     inside(Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynamic,
+            Eigen::Dynamic, Eigen::RowMajor>> x, bool on_boundary) const
      {
-       return x[0] < DOLFIN_EPS or x[0] > 1.0 - DOLFIN_EPS;
+       Eigen::Matrix<bool, Eigen::Dynamic, 1> result(x.rows());
+       for (unsigned int i = 0; i != x.rows(); ++i)
+         result[i] = (x(i, 0) < DOLFIN_EPS or x(i, 0) > 1.0 - DOLFIN_EPS);
+       return result;
      }
    };
 

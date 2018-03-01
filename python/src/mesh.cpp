@@ -446,14 +446,20 @@ void mesh(py::module &m) {
           "dihedral_angles_matplotlib_histogram",
           &dolfin::mesh::MeshQuality::dihedral_angles_matplotlib_histogram);
 
-  // dolfin::mesh::SubDomain trampoline class for user overloading from
+  using VectorXb = Eigen::Matrix<bool, Eigen::Dynamic, 1>;
+
+  // dolfin::SubDomain trampoline class for user overloading from
   // Python
   class PySubDomain : public dolfin::mesh::SubDomain {
     using dolfin::mesh::SubDomain::SubDomain;
 
-    bool inside(Eigen::Ref<const Eigen::VectorXd> x,
-                bool on_boundary) const override {
-      PYBIND11_OVERLOAD(bool, dolfin::mesh::SubDomain, inside, x, on_boundary);
+    VectorXb
+    inside(Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynamic,
+                                          Eigen::Dynamic, Eigen::RowMajor>>
+               x,
+           bool on_boundary) const override {
+      PYBIND11_OVERLOAD(VectorXb, dolfin::mesh::SubDomain, inside, x,
+                        on_boundary);
     }
 
     void map(Eigen::Ref<const Eigen::VectorXd> x,
@@ -462,38 +468,23 @@ void mesh(py::module &m) {
     }
   };
 
-  // dolfin::SubDomian
+  // dolfin::mesh::SubDomain
   py::class_<dolfin::mesh::SubDomain, std::shared_ptr<dolfin::mesh::SubDomain>,
              PySubDomain>(m, "SubDomain", "DOLFIN SubDomain object")
       .def(py::init<double>(), py::arg("map_tol") = DOLFIN_EPS)
-      .def("inside",
-           (bool (dolfin::mesh::SubDomain::*)(Eigen::Ref<const Eigen::VectorXd>,
-                                              bool) const) &
-               dolfin::mesh::SubDomain::inside)
-      .def("map",
-           (void (dolfin::mesh::SubDomain::*)(Eigen::Ref<const Eigen::VectorXd>,
-                                              Eigen::Ref<Eigen::VectorXd>)
-                const) &
-               dolfin::mesh::SubDomain::map)
-      .def("set_property", &dolfin::mesh::SubDomain::set_property)
-      .def("get_property", &dolfin::mesh::SubDomain::get_property)
-      .def("mark",
-           (void (dolfin::mesh::SubDomain::*)(
-               dolfin::mesh::MeshFunction<std::size_t> &, std::size_t, bool)
-                const) &
-               dolfin::mesh::SubDomain::mark,
+      .def("inside", &dolfin::mesh::SubDomain::inside, py::arg("x").noconvert(),
+           py::arg("on_boundary"))
+      .def("map", &dolfin::mesh::SubDomain::map, py::arg("x").noconvert(),
+           py::arg("y").noconvert())
+      .def("mark", &dolfin::mesh::SubDomain::mark<std::size_t>,
            py::arg("meshfunction"), py::arg("marker"),
            py::arg("check_midpoint") = true)
-      .def("mark",
-           (void (dolfin::mesh::SubDomain::*)(
-               dolfin::mesh::MeshFunction<double> &, double, bool) const) &
-               dolfin::mesh::SubDomain::mark,
+      .def("mark", &dolfin::mesh::SubDomain::mark<bool>,
            py::arg("meshfunction"), py::arg("marker"),
            py::arg("check_midpoint") = true)
-      .def("mark",
-           (void (dolfin::mesh::SubDomain::*)(
-               dolfin::mesh::MeshFunction<bool> &, bool, bool) const) &
-               dolfin::mesh::SubDomain::mark,
+      .def("mark", &dolfin::mesh::SubDomain::mark<int>, py::arg("meshfunction"),
+           py::arg("marker"), py::arg("check_midpoint") = true)
+      .def("mark", &dolfin::mesh::SubDomain::mark<double>,
            py::arg("meshfunction"), py::arg("marker"),
            py::arg("check_midpoint") = true);
 
@@ -506,4 +497,4 @@ void mesh(py::module &m) {
       .def_static("masters_slaves",
                   &dolfin::mesh::PeriodicBoundaryComputation::masters_slaves);
 }
-}
+} // namespace dolfin_wrappers

@@ -47,10 +47,7 @@ from .cpp.function import (Expression, Constant, FunctionAXPY)
 from .cpp.fem import (FiniteElement, DofMap,
                       vertex_to_dof_map, dof_to_vertex_map)
 
-from .cpp.geometry import (BoundingBoxTree,
-                           Point,
-                           MeshPointIntersection,
-                           intersect)
+from .cpp.geometry import BoundingBoxTree, Point
 from .cpp.generation import IntervalMesh, BoxMesh, RectangleMesh
 from .cpp.io import XDMFFile, VTKFile
 
@@ -107,7 +104,6 @@ from .jit.pybind11jit import compile_cpp_code
 #from .la import la_index_dtype
 from .mesh.meshfunction import (MeshFunction)
 from .mesh.meshvaluecollection import MeshValueCollection
-from .mesh.subdomain import CompiledSubDomain
 
 # Import from ufl
 from ufl import (FiniteElement, TensorElement, VectorElement,
