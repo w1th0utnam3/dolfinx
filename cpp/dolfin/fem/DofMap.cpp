@@ -22,8 +22,8 @@ using namespace dolfin::fem;
 //-----------------------------------------------------------------------------
 DofMap::DofMap(std::shared_ptr<const ufc::dofmap> ufc_dofmap,
                const mesh::Mesh& mesh)
-    : _cell_dimension(0), _ufc_dofmap(ufc_dofmap), _is_view(false),
-      _global_dimension(0), _ufc_offset(0)
+    : _ufc_dofmap(ufc_dofmap), _is_view(false), _global_dimension(0),
+      _ufc_offset(0)
 {
   dolfin_assert(_ufc_dofmap);
 
@@ -34,8 +34,8 @@ DofMap::DofMap(std::shared_ptr<const ufc::dofmap> ufc_dofmap,
 DofMap::DofMap(std::shared_ptr<const ufc::dofmap> ufc_dofmap,
                const mesh::Mesh& mesh,
                std::shared_ptr<const mesh::SubDomain> constrained_domain)
-    : _cell_dimension(0), _ufc_dofmap(ufc_dofmap), _is_view(false),
-      _global_dimension(0), _ufc_offset(0)
+    : _ufc_dofmap(ufc_dofmap), _is_view(false), _global_dimension(0),
+      _ufc_offset(0)
 {
   dolfin_assert(_ufc_dofmap);
 
@@ -49,8 +49,8 @@ DofMap::DofMap(std::shared_ptr<const ufc::dofmap> ufc_dofmap,
 DofMap::DofMap(const DofMap& parent_dofmap,
                const std::vector<std::size_t>& component,
                const mesh::Mesh& mesh)
-    : _cell_dimension(0), _ufc_dofmap(0), _is_view(true), _global_dimension(0),
-      _ufc_offset(0), _index_map(parent_dofmap._index_map)
+    : _ufc_dofmap(0), _is_view(true), _global_dimension(0), _ufc_offset(0),
+      _index_map(parent_dofmap._index_map)
 {
   // Build sub-dofmap
   DofMapBuilder::build_sub_map_view(*this, parent_dofmap, component, mesh);
@@ -58,7 +58,7 @@ DofMap::DofMap(const DofMap& parent_dofmap,
 //-----------------------------------------------------------------------------
 DofMap::DofMap(std::unordered_map<std::size_t, std::size_t>& collapsed_map,
                const DofMap& dofmap_view, const mesh::Mesh& mesh)
-    : _cell_dimension(0), _ufc_dofmap(dofmap_view._ufc_dofmap), _is_view(false),
+    : _ufc_dofmap(dofmap_view._ufc_dofmap), _is_view(false),
       _global_dimension(0), _ufc_offset(0)
 {
   dolfin_assert(_ufc_dofmap);
