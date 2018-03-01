@@ -20,6 +20,17 @@
 # Modified by Benjamin Kehlet 2012
 
 import pytest
+import dolfin
+
+
+@pytest.fixture
+def mesh():
+    return dolfin.UnitCubeMesh(dolfin.MPI.comm_world, 8, 8, 8)
+
+
+@pytest.fixture
+def V(mesh):
+    return dolfin.FunctionSpace(mesh, 'CG', 1)
 
 
 def test_expression_attach():
