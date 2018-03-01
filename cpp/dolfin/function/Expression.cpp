@@ -24,7 +24,7 @@ Expression::Expression(std::vector<std::size_t> value_shape)
 //-----------------------------------------------------------------------------
 Expression::Expression(
     std::vector<std::size_t> value_shape,
-    std::function<void(double*, int, const double*, int)> eval)
+    std::function<void(double*, const double*, int, int, int)> eval)
     : _value_shape(value_shape), _eval(eval)
 {
   // Do nothing
@@ -54,7 +54,8 @@ void Expression::eval(Eigen::Ref<EigenRowMatrixXd> values,
 {
   if (_eval)
   {
-    _eval(values.data(), values.size(), x.data(), x.size());
+    assert(x.rows() == values.rows());
+    _eval(values.data(), x.data(), x.rows(), x.cols(), values.cols());
   }
   else
   {

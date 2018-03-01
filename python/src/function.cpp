@@ -138,15 +138,14 @@ void function(py::module &m) {
   py::class_<dolfin::function::Expression, PyExpression,
              std::shared_ptr<dolfin::function::Expression>,
              dolfin::function::GenericFunction>(
-      m, "Expression",
-      "An Expression is a function (field) that can appear as "
-      "a coefficient in a form")
+      m, "Expression", "An Expression is a function (field) that can appear as "
+                       "a coefficient in a form")
       .def(py::init<std::vector<std::size_t>>())
       //.def(py::init<std::vector<std::size_t>,
       //              std::function<void(double *, int, const double *,
       //              int)>>())
       .def(py::init([](std::vector<std::size_t> shape, std::size_t addr) {
-        auto f_ptr = (void (*)(double *, int, const double *, int))addr;
+        auto f_ptr = (void (*)(double *, const double *, int, int, int))addr;
         return std::make_unique<dolfin::function::Expression>(shape, f_ptr);
       }))
       .def("__call__",
@@ -245,13 +244,15 @@ void function(py::module &m) {
       //(dolfin::function::Function::*)(const
       // dolfin::function::Function&))
       //     &dolfin::function::Function::operator=)
-      .def("_assign", (const dolfin::function::Function &(
-                          dolfin::function::Function::
-                              *)(const dolfin::function::Expression &)) &
-                          dolfin::function::Function::operator=)
-      .def("_assign", (void (dolfin::function::Function::*)(
-                          const dolfin::function::FunctionAXPY &)) &
-                          dolfin::function::Function::operator=)
+      .def("_assign",
+           (const dolfin::function::Function &(
+               dolfin::function::Function::
+                   *)(const dolfin::function::Expression &)) &
+               dolfin::function::Function::operator=)
+      .def("_assign",
+           (void (dolfin::function::Function::*)(
+               const dolfin::function::FunctionAXPY &)) &
+               dolfin::function::Function::operator=)
       .def("__call__",
            [](dolfin::function::Function &self,
               Eigen::Ref<const Eigen::VectorXd> x) {

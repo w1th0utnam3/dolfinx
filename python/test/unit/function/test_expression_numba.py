@@ -36,24 +36,31 @@ def V(mesh):
 def test_expression_attach():
     from numba import cfunc, types, carray
 
-    c_sig = types.void(types.CPointer(types.double), types.intc,
-                       types.CPointer(types.double), types.intc)
+    c_sig = types.void(types.CPointer(types.double),
+                       types.CPointer(types.double),
+                       types.intc, types.intc, types.intc)
 
     @cfunc(c_sig, nopython=True)
-    def my_callback(value, m, x, n):
-        x_array = carray(x, n)
-        val_array = carray(value, (m))
-        val_array[0] = x_array[0] + x_array[1]
+    def my_callback(value, x, np, gdim, vdim):
+        x_array = carray(x, (np, gdim))
+        val_array = carray(value, (np, vdim))
+        val_array[:, 0] = x_array[:, 0] + x_array[:, 1]
 
     # print("Test: ", my_callback.address)
     from dolfin import cpp
-    e = cpp.function.Expression([1], my_callback.address)
+    e = cpp.function.Expression([0], my_callback.address)
 
     import numpy as np
-    vals = np.zeros(1)
-    x = np.ndarray([3, 10])
-    e.eval(vals, [3, 10])
+    vals = np.zeros([2, 1])
+    x = np.array([[3, 10], [1, 3]])
+    print(vals.shape)
+    print(vals)
+    print("-----")
+    print(x.shape)
+    print(x)
+
+    e.eval(vals, x)
     print("Test2: ", vals)
-    assert vals == 13.0
+    #assert vals == 13.0
 
     # print(my_callback.inspect_llvm())

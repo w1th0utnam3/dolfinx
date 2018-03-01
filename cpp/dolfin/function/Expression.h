@@ -53,7 +53,7 @@ public:
   explicit Expression(std::vector<std::size_t> value_shape);
 
   Expression(std::vector<std::size_t> value_shape,
-             std::function<void(double*, int, const double*, int)> eval);
+             std::function<void(double*, const double*, int, int, int)> eval);
 
   /// Copy constructor
   ///
@@ -167,7 +167,7 @@ private:
   // Value shape
   std::vector<std::size_t> _value_shape;
 
-  std::function<void(double*, int, const double*, int)> _eval;
+  std::function<void(double*, const double*, int, int, int)> _eval;
 };
 }
 }
