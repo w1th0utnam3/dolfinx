@@ -8,6 +8,7 @@
 
 #include "GenericFunction.h"
 #include <Eigen/Dense>
+#include <functional>
 #include <ufc.h>
 #include <vector>
 
@@ -50,6 +51,9 @@ public:
   /// @param value_shape (std::vector<std::size_t>)
   ///         Shape of expression.
   explicit Expression(std::vector<std::size_t> value_shape);
+
+  Expression(std::vector<std::size_t> value_shape,
+             std::function<void(double*, int, const double*, int)> eval);
 
   /// Copy constructor
   ///
@@ -162,6 +166,8 @@ public:
 private:
   // Value shape
   std::vector<std::size_t> _value_shape;
+
+  std::function<void(double*, int, const double*, int)> _eval;
 };
 }
 }

@@ -138,6 +138,13 @@ void function(py::module &m) {
       m, "Expression", "An Expression is a function (field) that can appear as "
                        "a coefficient in a form")
       .def(py::init<std::vector<std::size_t>>())
+      //.def(py::init<std::vector<std::size_t>,
+      //              std::function<void(double *, int, const double *,
+      //              int)>>())
+      .def(py::init([](std::vector<std::size_t> shape, std::size_t addr) {
+        auto f_ptr = (void (*)(double *, int, const double *, int))addr;
+        return std::make_unique<dolfin::function::Expression>(shape, f_ptr);
+      }))
       .def("__call__",
            [](const dolfin::function::Expression &self,
               Eigen::Ref<const Eigen::VectorXd> x) {

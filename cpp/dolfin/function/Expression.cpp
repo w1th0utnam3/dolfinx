@@ -22,6 +22,14 @@ Expression::Expression(std::vector<std::size_t> value_shape)
   // Do nothing
 }
 //-----------------------------------------------------------------------------
+Expression::Expression(
+    std::vector<std::size_t> value_shape,
+    std::function<void(double*, int, const double*, int)> eval)
+    : _value_shape(value_shape), _eval(eval)
+{
+  // Do nothing
+}
+//-----------------------------------------------------------------------------
 Expression::Expression(const Expression& expression)
     : _value_shape(expression._value_shape)
 {
@@ -44,8 +52,15 @@ void Expression::eval(Eigen::Ref<Eigen::VectorXd> values,
 void Expression::eval(Eigen::Ref<Eigen::VectorXd> values,
                       Eigen::Ref<const Eigen::VectorXd> x) const
 {
-  log::dolfin_error("Expression.cpp", "evaluate expression",
-               "Missing eval() function (must be overloaded)");
+  if (_eval)
+  {
+    _eval(values.data(), values.size(), x.data(), x.size());
+  }
+  else
+  {
+    log::dolfin_error("Expression.cpp", "evaluate expression",
+                      "Missing eval() function (must be overloaded)");
+  }
 }
 //-----------------------------------------------------------------------------
 std::size_t Expression::value_rank() const { return _value_shape.size(); }
@@ -54,9 +69,10 @@ std::size_t Expression::value_dimension(std::size_t i) const
 {
   if (i >= _value_shape.size())
   {
-    log::dolfin_error("Expression.cpp", "evaluate expression",
-                 "Illegal axis %d for value dimension for value of rank %d", i,
-                 _value_shape.size());
+    log::dolfin_error(
+        "Expression.cpp", "evaluate expression",
+        "Illegal axis %d for value dimension for value of rank %d", i,
+        _value_shape.size());
   }
   return _value_shape[i];
 }
@@ -69,13 +85,13 @@ std::vector<std::size_t> Expression::value_shape() const
 void Expression::set_property(std::string name, double value)
 {
   log::dolfin_error("Expression.cpp", "set property",
-               "This method should be overloaded in the derived class");
+                    "This method should be overloaded in the derived class");
 }
 //-----------------------------------------------------------------------------
 double Expression::get_property(std::string name) const
 {
   log::dolfin_error("Expression.cpp", "get property",
-               "This method should be overloaded in the derived class");
+                    "This method should be overloaded in the derived class");
   return 0.0;
 }
 //-----------------------------------------------------------------------------
@@ -83,14 +99,14 @@ void Expression::set_generic_function(std::string name,
                                       std::shared_ptr<GenericFunction>)
 {
   log::dolfin_error("Expression.cpp", "set property",
-               "This method should be overloaded in the derived class");
+                    "This method should be overloaded in the derived class");
 }
 //-----------------------------------------------------------------------------
 std::shared_ptr<GenericFunction>
 Expression::get_generic_function(std::string name) const
 {
   log::dolfin_error("Expression.cpp", "get property",
-               "This method should be overloaded in the derived class");
+                    "This method should be overloaded in the derived class");
   return std::shared_ptr<GenericFunction>();
 }
 //-----------------------------------------------------------------------------
