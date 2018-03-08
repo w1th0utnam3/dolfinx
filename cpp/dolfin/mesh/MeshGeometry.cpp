@@ -18,32 +18,9 @@ MeshGeometry::MeshGeometry() : _dim(0), _degree(1)
   // Do nothing
 }
 //-----------------------------------------------------------------------------
-MeshGeometry::MeshGeometry(const MeshGeometry& geometry) : _dim(0)
-{
-  *this = geometry;
-}
-//-----------------------------------------------------------------------------
-MeshGeometry::~MeshGeometry()
-{
-  // Do nothing
-}
-//-----------------------------------------------------------------------------
-const MeshGeometry& MeshGeometry::operator=(const MeshGeometry& geometry)
-{
-  // Try init; may fail with non-matching _dim and _degree
-  init(geometry._dim, geometry._degree);
-
-  // Copy remaining data
-  coordinates = geometry.coordinates;
-  entity_offsets = geometry.entity_offsets;
-
-  return *this;
-}
-//-----------------------------------------------------------------------------
 geometry::Point MeshGeometry::point(std::size_t n) const
 {
   return geometry::Point(_dim, x(n));
-  ;
 }
 //-----------------------------------------------------------------------------
 void MeshGeometry::init(std::size_t dim, std::size_t degree)
@@ -52,20 +29,20 @@ void MeshGeometry::init(std::size_t dim, std::size_t degree)
   if (dim == 0)
   {
     log::dolfin_error("MeshGeometry.cpp", "initialize mesh geometry",
-                 "Mesh geometry of dimension zero is not supported");
+                      "Mesh geometry of dimension zero is not supported");
   }
   if (degree == 0)
   {
     log::dolfin_error("MeshGeometry.cpp", "initialize mesh geometry",
-                 "Mesh geometry of degree zero is not supported");
+                      "Mesh geometry of degree zero is not supported");
   }
 
   // Avoid repeated initialization; would be a hell for UFL
   if (_dim > 0 && (_dim != dim || _degree != degree))
   {
     log::dolfin_error("MeshGeometry.cpp", "initialize mesh geometry",
-                 "Mesh geometry cannot be reinitialized with different "
-                 "dimension and/or degree");
+                      "Mesh geometry cannot be reinitialized with different "
+                      "dimension and/or degree");
   }
 
   // Save dimension and degree

@@ -27,13 +27,16 @@ public:
   MeshGeometry();
 
   /// Copy constructor
-  MeshGeometry(const MeshGeometry& geometry);
+  MeshGeometry(const MeshGeometry&) = default;
+
+  /// Move constructor
+  MeshGeometry(MeshGeometry&&) = default;
 
   /// Destructor
-  ~MeshGeometry();
+  ~MeshGeometry() = default;
 
   /// Assignment
-  const MeshGeometry& operator=(const MeshGeometry& geometry);
+  MeshGeometry& operator=(const MeshGeometry&) = default;
 
   /// Return Euclidean dimension of coordinate system
   std::size_t dim() const { return _dim; }
@@ -123,7 +126,7 @@ public:
       return (_degree - 3) * (_degree - 2) * (_degree - 1) / 6;
     }
     log::dolfin_error("MeshGeometry.h", "calculate number of points",
-                 "Entity dimension out of range");
+                      "Entity dimension out of range");
     return 0;
   }
 

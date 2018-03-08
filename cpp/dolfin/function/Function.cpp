@@ -289,16 +289,14 @@ void Function::eval(Eigen::Ref<EigenRowMatrixXd> values,
                     const mesh::Cell& dolfin_cell,
                     const ufc::cell& ufc_cell) const
 {
-  // Developer note: work arrays/vectors are re-created each time this
-  //                 function is called for thread-safety
-
+  dolfin_assert(x.rows() == values.rows());
   dolfin_assert(_function_space->element());
   const fem::FiniteElement& element = *_function_space->element();
 
   // Compute in tensor (one for scalar function, . . .)
   const std::size_t value_size_loc = value_size();
 
-  dolfin_assert((std::size_t)values.size() == value_size_loc);
+  dolfin_assert((std::size_t)values.cols() == value_size_loc);
 
   // Create work vector for expansion coefficients
   std::vector<double> coefficients(element.space_dimension());
@@ -316,19 +314,17 @@ void Function::eval(Eigen::Ref<EigenRowMatrixXd> values,
 
   // Initialise values
   values.setZero();
-  //  for (std::size_t j = 0; j < value_size_loc; ++j)
-  //    values[j] = 0.0;
 
-  // Compute linear combination
-  std::size_t k = 1;
-  for (std::size_t i = 0; i < element.space_dimension(); ++i)
-  {
-    element.evaluate_basis(i, basis.data(), x.data(), coordinate_dofs.data(),
-                           ufc_cell.orientation);
+  // Compute linear combination for each row of x
+  for (unsigned int k = 0; k < x.rows(); ++k)
+    for (std::size_t i = 0; i < element.space_dimension(); ++i)
+    {
+      element.evaluate_basis(i, basis.data(), x.data() + k * x.cols(),
+                             coordinate_dofs.data(), ufc_cell.orientation);
 
-    for (std::size_t j = 0; j < value_size_loc; ++j)
-      values(k, j) += coefficients[i] * basis[j];
-  }
+      for (std::size_t j = 0; j < value_size_loc; ++j)
+        values(k, j) += coefficients[i] * basis[j];
+    }
 }
 //-----------------------------------------------------------------------------
 void Function::interpolate(const GenericFunction& v)
@@ -422,8 +418,7 @@ void Function::restrict(double* w, const fem::FiniteElement& element,
   //  }
 }
 //-----------------------------------------------------------------------------
-void Function::compute_vertex_values(std::vector<double>& vertex_values,
-                                     const mesh::Mesh& mesh) const
+EigenRowArrayXXd Function::compute_vertex_values(const mesh::Mesh& mesh) const
 {
   dolfin_assert(_function_space);
   dolfin_assert(_function_space->mesh());
@@ -437,10 +432,6 @@ void Function::compute_vertex_values(std::vector<double>& vertex_values,
                       "Non-matching mesh");
   }
 
-  // Get finite element
-  dolfin_assert(_function_space->element());
-  const fem::FiniteElement& element = *_function_space->element();
-
   // Local data for interpolation on each cell
   const std::size_t num_cell_vertices
       = mesh.type().num_vertices(mesh.topology().dim());
@@ -449,53 +440,40 @@ void Function::compute_vertex_values(std::vector<double>& vertex_values,
   const std::size_t value_size_loc = value_size();
 
   // Resize Array for holding vertex values
-  vertex_values.resize(value_size_loc * (mesh.num_vertices()));
-
-  // Create vector to hold cell vertex values
-  std::vector<double> cell_vertex_values(value_size_loc * num_cell_vertices);
-
-  // Create vector for expansion coefficients
-  std::vector<double> coefficients(element.space_dimension());
+  EigenRowArrayXXd vertex_values(mesh.num_vertices(), value_size_loc);
 
   // Interpolate vertex values on each cell (using last computed value
   // if not continuous, e.g. discontinuous Galerkin methods)
   ufc::cell ufc_cell;
-  std::vector<double> coordinate_dofs;
+  EigenRowMatrixXd x(num_cell_vertices, mesh.geometry().dim());
+  EigenRowMatrixXd values(num_cell_vertices, value_size_loc);
+
   for (auto& cell : mesh::MeshRange<mesh::Cell>(mesh, mesh::MeshRangeType::ALL))
   {
     // Update to current cell
-    cell.get_coordinate_dofs(coordinate_dofs);
     cell.get_cell_data(ufc_cell);
+    cell.get_coordinate_dofs(x);
 
-    // Pick values from global vector
-    restrict(coefficients.data(), element, cell, coordinate_dofs.data(),
-             ufc_cell);
-
-    // Interpolate values at the vertices
-    element.interpolate_vertex_values(
-        cell_vertex_values.data(), coefficients.data(), coordinate_dofs.data(),
-        ufc_cell.orientation);
+    // Call evaluate function
+    eval(values, x, cell, ufc_cell);
 
     // Copy values to array of vertex values
     std::size_t local_index = 0;
     for (auto& vertex : mesh::EntityRange<mesh::Vertex>(cell))
     {
-      for (std::size_t i = 0; i < value_size_loc; ++i)
-      {
-        const std::size_t global_index
-            = i * mesh.num_vertices() + vertex.index();
-        vertex_values[global_index] = cell_vertex_values[local_index];
-        ++local_index;
-      }
+      vertex_values.row(vertex.index()) = values.row(local_index);
+      ++local_index;
     }
   }
+
+  return vertex_values;
 }
 //-----------------------------------------------------------------------------
-void Function::compute_vertex_values(std::vector<double>& vertex_values)
+EigenRowArrayXXd Function::compute_vertex_values() const
 {
-  dolfin_assert(_function_space);
-  dolfin_assert(_function_space->mesh());
-  compute_vertex_values(vertex_values, *_function_space->mesh());
+  assert(_function_space);
+  assert(_function_space->mesh());
+  return compute_vertex_values(*_function_space->mesh());
 }
 //-----------------------------------------------------------------------------
 void Function::init_vector()
