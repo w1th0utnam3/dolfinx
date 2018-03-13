@@ -5,6 +5,7 @@
 // SPDX-License-Identifier:    LGPL-3.0-or-later
 
 #include <dolfin/common/Variable.h>
+#include <dolfin/common/types.h>
 #include <dolfin/function/Expression.h>
 #include <dolfin/geometry/BoundingBoxTree.h>
 #include <dolfin/mesh/Cell.h>
@@ -37,11 +38,6 @@ namespace py = pybind11;
 namespace dolfin_wrappers {
 
 void mesh(py::module &m) {
-  // Make dolfin::mesh::SubDomain from pointer
-  m.def("make_dolfin_subdomain", [](std::uintptr_t e) {
-    dolfin::mesh::SubDomain *p = reinterpret_cast<dolfin::mesh::SubDomain *>(e);
-    return std::shared_ptr<const dolfin::mesh::SubDomain>(p);
-  });
 
   // dolfin::mesh::CellType
   py::class_<dolfin::mesh::CellType> celltype(m, "CellType");
@@ -67,8 +63,7 @@ void mesh(py::module &m) {
       .def("dim", &dolfin::mesh::MeshGeometry::dim, "Geometrical dimension")
       .def("degree", &dolfin::mesh::MeshGeometry::degree, "Degree")
       .def("x", [](dolfin::mesh::MeshGeometry &self) {
-        return Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
-                                        Eigen::RowMajor>>(
+        return Eigen::Map<dolfin::EigenRowArrayXXd>(
             self.x().data(), self.num_points(), self.dim());
       });
 
@@ -123,17 +118,13 @@ void mesh(py::module &m) {
       .def(py::init([](const MPICommWrapper comm) {
         return std::make_unique<dolfin::mesh::Mesh>(comm.get());
       }))
-      .def(py::init(
-          [](const MPICommWrapper comm, dolfin::mesh::CellType::Type type,
-             Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynamic,
-                                            Eigen::Dynamic, Eigen::RowMajor>>
-                 geometry,
-             Eigen::Ref<const Eigen::Matrix<std::int32_t, Eigen::Dynamic,
-                                            Eigen::Dynamic, Eigen::RowMajor>>
-                 topology) {
-            return std::make_unique<dolfin::mesh::Mesh>(comm.get(), type,
-                                                        geometry, topology);
-          }))
+      .def(py::init([](const MPICommWrapper comm,
+                       dolfin::mesh::CellType::Type type,
+                       Eigen::Ref<const dolfin::EigenRowArrayXXd> geometry,
+                       Eigen::Ref<const dolfin::EigenRowArrayXXi32> topology) {
+        return std::make_unique<dolfin::mesh::Mesh>(comm.get(), type, geometry,
+                                                    topology);
+      }))
       .def("bounding_box_tree", &dolfin::mesh::Mesh::bounding_box_tree)
       .def("cells",
            [](const dolfin::mesh::Mesh &self) {
@@ -193,9 +184,8 @@ void mesh(py::module &m) {
       m, "MeshConnectivity", "DOLFIN MeshConnectivity object")
       .def("__call__",
            [](const dolfin::mesh::MeshConnectivity &self, std::size_t i) {
-             return Eigen::Map<
-                 const Eigen::Matrix<std::int32_t, Eigen::Dynamic, 1>>(
-                 self(i), self.size(i));
+             return Eigen::Map<const dolfin::EigenArrayXi32>(self(i),
+                                                             self.size(i));
            },
            py::return_value_policy::reference_internal)
       .def("size",
@@ -225,8 +215,7 @@ void mesh(py::module &m) {
            "Global number of incident entities of given dimension")
       .def("entities",
            [](dolfin::mesh::MeshEntity &self, std::size_t dim) {
-             return Eigen::Map<
-                 const Eigen::Matrix<std::int32_t, Eigen::Dynamic, 1>>(
+             return Eigen::Map<const dolfin::EigenArrayXi32>(
                  self.entities(dim), self.num_entities(dim));
            })
       .def("midpoint", &dolfin::mesh::MeshEntity::midpoint,
@@ -347,14 +336,11 @@ void mesh(py::module &m) {
              std::shared_ptr<dolfin::mesh::MeshFunction<SCALAR>>,              \
              dolfin::common::Variable>(m, "MeshFunction" #SCALAR_NAME,         \
                                        "DOLFIN MeshFunction object")           \
-      .def(py::init([](std::shared_ptr<const dolfin::mesh::Mesh> mesh,         \
-                       std::size_t dim) {                                      \
-        return dolfin::mesh::MeshFunction<SCALAR>(mesh, dim, 0);               \
-      }))                                                                      \
       .def(py::init<std::shared_ptr<const dolfin::mesh::Mesh>, std::size_t,    \
                     SCALAR>())                                                 \
       .def(py::init<std::shared_ptr<const dolfin::mesh::Mesh>,                 \
-                    const dolfin::mesh::MeshValueCollection<SCALAR> &>())      \
+                    const dolfin::mesh::MeshValueCollection<SCALAR> &,         \
+                    const SCALAR &>())                                         \
       .def("__getitem__",                                                      \
            (const SCALAR &(dolfin::mesh::MeshFunction<SCALAR>::*)(std::size_t) \
                 const) &                                                       \
@@ -373,14 +359,14 @@ void mesh(py::module &m) {
       .def("__len__", &dolfin::mesh::MeshFunction<SCALAR>::size)               \
       .def("dim", &dolfin::mesh::MeshFunction<SCALAR>::dim)                    \
       .def("size", &dolfin::mesh::MeshFunction<SCALAR>::size)                  \
-      .def("id", &dolfin::mesh::MeshFunction<SCALAR>::id)                      \
       .def("ufl_id", &dolfin::mesh::MeshFunction<SCALAR>::id)                  \
       .def("mesh", &dolfin::mesh::MeshFunction<SCALAR>::mesh)                  \
       .def("set_values", &dolfin::mesh::MeshFunction<SCALAR>::set_values)      \
-      .def("set_all", &dolfin::mesh::MeshFunction<SCALAR>::set_all)            \
+      .def("set_all", [](dolfin::mesh::MeshFunction<SCALAR> &self,             \
+                         const SCALAR &value) { self = value; })               \
       .def("where_equal", &dolfin::mesh::MeshFunction<SCALAR>::where_equal)    \
       .def("array", [](dolfin::mesh::MeshFunction<SCALAR> &self) {             \
-        return Eigen::Map<Eigen::Matrix<SCALAR, Eigen::Dynamic, 1>>(           \
+        return Eigen::Map<Eigen::Array<SCALAR, Eigen::Dynamic, 1>>(            \
             self.values(), self.size());                                       \
       })
 
@@ -396,7 +382,6 @@ void mesh(py::module &m) {
              std::shared_ptr<dolfin::mesh::MeshValueCollection<SCALAR>>,       \
              dolfin::common::Variable>(m, "MeshValueCollection_" #SCALAR_NAME, \
                                        "DOLFIN MeshValueCollection object")    \
-      .def(py::init<std::shared_ptr<const dolfin::mesh::Mesh>>())              \
       .def(py::init<std::shared_ptr<const dolfin::mesh::Mesh>, std::size_t>()) \
       .def("dim", &dolfin::mesh::MeshValueCollection<SCALAR>::dim)             \
       .def("size", &dolfin::mesh::MeshValueCollection<SCALAR>::size)           \
@@ -446,24 +431,19 @@ void mesh(py::module &m) {
           "dihedral_angles_matplotlib_histogram",
           &dolfin::mesh::MeshQuality::dihedral_angles_matplotlib_histogram);
 
-  using VectorXb = Eigen::Matrix<bool, Eigen::Dynamic, 1>;
-
   // dolfin::SubDomain trampoline class for user overloading from
   // Python
   class PySubDomain : public dolfin::mesh::SubDomain {
     using dolfin::mesh::SubDomain::SubDomain;
 
-    VectorXb
-    inside(Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynamic,
-                                          Eigen::Dynamic, Eigen::RowMajor>>
-               x,
-           bool on_boundary) const override {
-      PYBIND11_OVERLOAD(VectorXb, dolfin::mesh::SubDomain, inside, x,
-                        on_boundary);
+    dolfin::EigenArrayXb inside(Eigen::Ref<const dolfin::EigenRowArrayXXd> x,
+                                bool on_boundary) const override {
+      PYBIND11_OVERLOAD(dolfin::EigenArrayXb, dolfin::mesh::SubDomain, inside,
+                        x, on_boundary);
     }
 
-    void map(Eigen::Ref<const Eigen::VectorXd> x,
-             Eigen::Ref<Eigen::VectorXd> y) const override {
+    void map(Eigen::Ref<const dolfin::EigenArrayXd> x,
+             Eigen::Ref<dolfin::EigenArrayXd> y) const override {
       PYBIND11_OVERLOAD(void, dolfin::mesh::SubDomain, map, x, y);
     }
   };

@@ -15,6 +15,7 @@
 #include <dolfin/common/types.h>
 #include <dolfin/fem/DirichletBC.h>
 #include <dolfin/mesh/Mesh.h>
+#include <dolfin/mesh/MeshGeometry.h>
 #include <map>
 
 namespace dolfin
@@ -53,18 +54,18 @@ public:
   ///
   /// @return    bool
   ///         True for points inside the subdomain.
-  virtual Eigen::Matrix<bool, Eigen::Dynamic, 1>
-  inside(Eigen::Ref<const EigenRowMatrixXd> x, bool on_boundary) const;
+  virtual EigenArrayXb inside(Eigen::Ref<const EigenRowArrayXXd> x,
+                              bool on_boundary) const;
 
   /// Map coordinate x in domain H to coordinate y in domain G (used for
   /// periodic boundary conditions)
   ///
-  /// @param   x (Eigen::Ref<const Eigen::VectorXd>)
+  /// @param   x (Eigen::Ref<const EigenArrayXd>)
   ///         The coordinates in domain H.
-  /// @param    y (Eigen::Ref<Eigen::VectorXd>)
+  /// @param    y (Eigen::Ref<EigenArrayXd>)
   ///         The coordinates in domain G.
-  virtual void map(Eigen::Ref<const Eigen::VectorXd> x,
-                   Eigen::Ref<Eigen::VectorXd> y) const;
+  virtual void map(Eigen::Ref<const EigenArrayXd> x,
+                   Eigen::Ref<EigenArrayXd> y) const;
 
   //--- Marking of MeshFunction ---
 
@@ -98,13 +99,7 @@ public:
   ///         Flag for whether midpoint of cell should be checked (default).
   template <typename S, typename T>
   void mark(S& sub_domains, T sub_domain, const Mesh& mesh,
-            bool check_mapply_idpoint) const;
-
-  /// Return geometric dimension
-  ///
-  /// @return    std::size_t
-  ///         The geometric dimension.
-  std::size_t geometric_dimension() const;
+            bool check_midpoint) const;
 
   /// Return tolerance uses to find matching point via map function
   ///
@@ -117,13 +112,6 @@ private:
   void apply_markers(std::map<std::size_t, std::size_t>& sub_domains,
                      std::size_t dim, T sub_domain, const Mesh& mesh,
                      bool check_midpoint) const;
-
-  // Friends
-  friend class dolfin::fem::DirichletBC;
-
-  // Geometric dimension, needed for SWIG interface, will be set before
-  // calls to inside() and map()
-  mutable std::size_t _geometric_dimension;
 };
 
 template <typename S, typename T>
@@ -146,9 +134,6 @@ void SubDomain::mark(S& sub_domains, T sub_domain, const Mesh& mesh,
     mesh.init(D - 1, D);
   }
 
-  // Set geometric dimension (needed for SWIG interface)
-  _geometric_dimension = mesh.geometry().dim();
-
   // Find all vertices on boundary
   // Set all to -1 (interior) to start with
   // If a vertex is on the boundary, give it an index from [0, count)
@@ -170,20 +155,22 @@ void SubDomain::mark(S& sub_domains, T sub_domain, const Mesh& mesh,
     }
   }
 
+  auto gdim = mesh.geometry().dim();
+
   // Check all vertices for "inside" (on_boundary==false)
-  Eigen::Map<const EigenRowMatrixXd> x(
-      mesh.geometry().x().data(), mesh.num_entities(0), _geometric_dimension);
-  EigenVectorXb all_inside = inside(x, false);
+  Eigen::Map<const EigenRowArrayXXd> x(mesh.geometry().x().data(),
+                                       mesh.num_entities(0), gdim);
+  EigenArrayXb all_inside = inside(x, false);
   assert(all_inside.rows() == x.rows());
 
   // Check all boundary vertices for "inside" (on_boundary==true)
-  EigenRowMatrixXd x_bound(count, _geometric_dimension);
+  EigenRowArrayXXd x_bound(count, gdim);
   for (std::int32_t i = 0; i != mesh.num_entities(0); ++i)
   {
     if (boundary_vertex[i] != -1)
       x_bound.row(boundary_vertex[i]) = x.row(i);
   }
-  EigenVectorXb bound_inside = inside(x_bound, true);
+  EigenArrayXb bound_inside = inside(x_bound, true);
   assert(bound_inside.rows() == x_bound.rows());
 
   // Copy values back to vector, now -1="not on boundary anyway",
@@ -223,16 +210,14 @@ void SubDomain::mark(S& sub_domains, T sub_domain, const Mesh& mesh,
     // FIXME: refactor for efficiency
     if (all_points_inside && check_midpoint)
     {
-      Eigen::Map<Eigen::RowVectorXd> x(
-          const_cast<double*>(entity.midpoint().coordinates()),
-          _geometric_dimension);
+      Eigen::Map<EigenRowArrayXd> x(entity.midpoint().coordinates(), gdim);
       if (!inside(x, on_boundary)[0])
         all_points_inside = false;
     }
 
     // Mark entity with all vertices inside
     if (all_points_inside)
-      sub_domains.set_value(entity.index(), sub_domain);
+      sub_domains[entity.index()] = sub_domain;
   }
 }
 //-----------------------------------------------------------------------------
