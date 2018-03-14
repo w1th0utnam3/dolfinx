@@ -185,7 +185,7 @@ private:
 
   // Return true if element matrix is required
   static bool
-  cell_matrix_required(const la::PETScMatrix* A, const void* integral,
+  cell_matrix_required(const la::PETScMatrix* A, bool integral,
                        const std::vector<DirichletBC::Map>& boundary_values,
                        const common::ArrayView<const dolfin::la_index_t>& dofs);
 };

@@ -39,11 +39,23 @@ Form::Form(
     {
       log::log(ERROR, "Expected element: %s", element->signature());
       log::log(ERROR, "Input element:    %s",
-          function_spaces[i]->element()->signature().c_str());
+               function_spaces[i]->element()->signature().c_str());
       log::dolfin_error("Form.cpp", "create form",
-                   "Wrong type of function space for argument %d", i);
+                        "Wrong type of function space for argument %d", i);
     }
   }
+
+  // Set _mesh from function::FunctionSpace and check they are the same
+  if (!function_spaces.empty())
+    _mesh = function_spaces[0]->mesh();
+  for (auto& f : function_spaces)
+    dolfin_assert(_mesh == f->mesh());
+}
+//-----------------------------------------------------------------------------
+Form::Form(
+    std::vector<std::shared_ptr<const function::FunctionSpace>> function_spaces)
+    : _function_spaces(function_spaces)
+{
 
   // Set _mesh from function::FunctionSpace and check they are the same
   if (!function_spaces.empty())

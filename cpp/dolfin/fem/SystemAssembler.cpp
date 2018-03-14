@@ -323,9 +323,9 @@ void SystemAssembler::cell_wise_assembly(
           std::vector<common::ArrayView<const dolfin::la_index_t>>(1)}};
 
   // Create pointers to hold integral objects
-  std::array<const ufc::cell_integral*, 2> cell_integrals
-      = {{ufc[0]->dolfin_form.integrals().cell_integral().get(),
-          ufc[1]->dolfin_form.integrals().cell_integral().get()}};
+  //  std::array<const ufc::cell_integral*, 2> cell_integrals
+  //  = {{ufc[0]->dolfin_form.integrals().cell_integral().get(),
+  //      ufc[1]->dolfin_form.integrals().cell_integral().get()}};
 
   std::array<const ufc::exterior_facet_integral*, 2> exterior_facet_integrals
       = {{ufc[0]->dolfin_form.integrals().exterior_facet_integral().get(),
@@ -372,12 +372,13 @@ void SystemAssembler::cell_wise_assembly(
       std::fill(data.Ae[form].begin(), data.Ae[form].end(), 0.0);
 
       // Get cell integrals for sub domain (if any)
+      std::size_t domain = 0;
       if (use_cell_domains)
       {
-        const std::size_t domain = (*cell_domains)[cell];
-        cell_integrals[form]
-            = ufc[form]->dolfin_form.integrals().cell_integral(domain).get();
+        domain = (*cell_domains)[cell];
       }
+      auto cell_tabulate
+          = ufc[form]->dolfin_form.integrals().cell_tabulate_tensor(domain);
 
       // Get local-to-global dof maps for cell
       for (std::size_t dim = 0; dim < rank; ++dim)
@@ -390,22 +391,25 @@ void SystemAssembler::cell_wise_assembly(
       bool tensor_required;
       if (rank == 2) // form == 0
       {
-        tensor_required = cell_matrix_required(
-            A, cell_integrals[form], boundary_values, cell_dofs[form][1]);
+
+        tensor_required
+            = cell_matrix_required(A, true, boundary_values, cell_dofs[form][1])
+              and cell_tabulate;
       }
       else
-        tensor_required = b && cell_integrals[form];
+        tensor_required = b && cell_tabulate;
 
       if (tensor_required)
       {
         // Update to current cell
-        ufc[form]->update(cell, coordinate_dofs, ufc_cell,
-                          cell_integrals[form]->enabled_coefficients());
+        ufc[form]->update(
+            cell, coordinate_dofs, ufc_cell,
+            ufc[form]->dolfin_form.integrals().cell_enabled_coefficients(
+                domain));
 
         // Tabulate cell tensor
-        cell_integrals[form]->tabulate_tensor(
-            ufc[form]->A.data(), ufc[form]->w(), coordinate_dofs.data(),
-            ufc_cell.orientation);
+        cell_tabulate(ufc[form]->A.data(), ufc[form]->w(),
+                      coordinate_dofs.data(), ufc_cell.orientation);
         for (std::size_t i = 0; i < data.Ae[form].size(); ++i)
           data.Ae[form][i] += ufc[form]->A[i];
       }
@@ -518,11 +522,10 @@ void SystemAssembler::facet_wise_assembly(
   dofmaps[1].push_back(ufc[1]->dolfin_form.function_space(0)->dofmap().get());
 
   // Cell dofmaps [form][cell][form dim]
-  std::
-      array<std::array<std::vector<common::ArrayView<const dolfin::la_index_t>>,
-                       2>,
-            2>
-          cell_dofs;
+  std::array<
+      std::array<std::vector<common::ArrayView<const dolfin::la_index_t>>, 2>,
+      2>
+      cell_dofs;
   cell_dofs[0][0].resize(2);
   cell_dofs[0][1].resize(2);
   cell_dofs[1][0].resize(1);
@@ -1035,8 +1038,8 @@ void SystemAssembler::apply_bc(
   dolfin_assert(b);
 
   // Wrap matrix and vector using Eigen
-  Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
-                           Eigen::RowMajor>>
+  Eigen::Map<
+      Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>
       _matA(A, global_dofs0.size(), global_dofs1.size());
   Eigen::Map<Eigen::VectorXd> _b(b, global_dofs0.size());
 
@@ -1119,7 +1122,7 @@ bool SystemAssembler::has_bc(
 }
 //-----------------------------------------------------------------------------
 bool SystemAssembler::cell_matrix_required(
-    const la::PETScMatrix* A, const void* integral,
+    const la::PETScMatrix* A, bool integral,
     const std::vector<DirichletBC::Map>& boundary_values,
     const common::ArrayView<const dolfin::la_index_t>& dofs)
 {

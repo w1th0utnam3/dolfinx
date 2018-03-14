@@ -25,6 +25,7 @@
 #include <dolfin/fem/DofMap.h>
 #include <dolfin/fem/FiniteElement.h>
 #include <dolfin/fem/Form.h>
+#include <dolfin/fem/FormIntegrals.h>
 #include <dolfin/fem/NonlinearVariationalProblem.h>
 #include <dolfin/fem/PETScDMCollection.h>
 #include <dolfin/fem/PointSource.h>
@@ -311,6 +312,8 @@ void fem(py::module &m) {
   // dolfin::fem::Form
   py::class_<dolfin::fem::Form, std::shared_ptr<dolfin::fem::Form>>(
       m, "Form", "DOLFIN Form object")
+      .def(py::init<std::vector<
+               std::shared_ptr<const dolfin::function::FunctionSpace>>>())
       .def(py::init<std::shared_ptr<const ufc::form>,
                     std::vector<std::shared_ptr<
                         const dolfin::function::FunctionSpace>>>())
@@ -331,6 +334,12 @@ void fem(py::module &m) {
       .def("set_interior_facet_domains",
            &dolfin::fem::Form::set_interior_facet_domains)
       .def("set_vertex_domains", &dolfin::fem::Form::set_vertex_domains)
+      .def("set_cell_tabulate",
+           [](dolfin::fem::Form &self, unsigned int i, std::size_t addr) {
+             auto tabulate_tensor_ptr = (void (*)(
+                 double *, const double *const *, const double *, int))addr;
+             self.integrals().set_cell_tabulate_tensor(i, tabulate_tensor_ptr);
+           })
       .def("rank", &dolfin::fem::Form::rank)
       .def("mesh", &dolfin::fem::Form::mesh);
 

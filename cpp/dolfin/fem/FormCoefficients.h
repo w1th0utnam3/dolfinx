@@ -31,6 +31,13 @@ namespace fem
 class FormCoefficients
 {
 public:
+
+  /// Instantiation with no UFC defined coefficients
+  FormCoefficients()
+  {
+    // Do nothing
+  }
+
   /// Initialise the FormCoefficients from a ufc::form
   /// instantiating all the required elements
   FormCoefficients(const ufc::form& ufc_form)

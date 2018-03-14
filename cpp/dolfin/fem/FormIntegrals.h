@@ -23,7 +23,6 @@ namespace fem
 class FormIntegrals
 {
 public:
-
   /// Type of integral
   enum class Type
   {
@@ -32,6 +31,12 @@ public:
     interior_facet,
     vertex
   };
+
+  /// Instantiation without any UFC integrals
+  FormIntegrals()
+  {
+    // Do nothing
+  }
 
   /// Initialise the FormIntegrals from a ufc::form
   /// instantiating all the required integrals
@@ -62,9 +67,11 @@ public:
 
     // Experimental function pointers for tabulate_tensor cell integral
     for (auto& ci : _cell_integrals)
+    {
       _cell_tabulate_tensor.push_back(std::bind(
           &ufc::cell_integral::tabulate_tensor, ci, std::placeholders::_1,
           std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+    }
 
     // Exterior facet integrals
     ufc::exterior_facet_integral* _default_exterior_facet_integral
@@ -173,13 +180,18 @@ public:
     _cell_tabulate_tensor[i] = fn;
   }
 
+  const std::vector<bool>& cell_enabled_coefficients(int i) const
+  {
+    return _cell_enabled_coefficients[0];
+  }
+
   /// Number of integrals of given type
   unsigned int count(FormIntegrals::Type t) const
   {
     switch (t)
     {
     case Type::cell:
-      return _cell_integrals.size();
+      return _cell_tabulate_tensor.size();
     case Type::interior_facet:
       return _interior_facet_integrals.size();
     case Type::exterior_facet:
@@ -191,7 +203,10 @@ public:
   }
 
   /// Number of cell integrals
-  unsigned int num_cell_integrals() const { return _cell_integrals.size(); }
+  unsigned int num_cell_integrals() const
+  {
+    return _cell_tabulate_tensor.size();
+  }
 
   /// Default exterior facet integral
   std::shared_ptr<const ufc::exterior_facet_integral>
@@ -274,6 +289,9 @@ private:
   std::vector<
       std::function<void(double*, const double* const*, const double*, int)>>
       _cell_tabulate_tensor;
+
+  // Enabled coefficients for each integral
+  std::vector<std::vector<bool>> _cell_enabled_coefficients;
 
   // Exterior facet integrals
   std::vector<std::shared_ptr<ufc::exterior_facet_integral>>

@@ -75,6 +75,13 @@ public:
        std::vector<std::shared_ptr<const function::FunctionSpace>>
            function_spaces);
 
+  /// Create form (no ufc)
+  ///
+  /// @param[in] function_spaces (std::vector<_function::FunctionSpace_>)
+  ///         Vector of function spaces.
+  Form(std::vector<std::shared_ptr<const function::FunctionSpace>>
+           function_spaces);
+
   /// Destructor
   virtual ~Form();
 
@@ -199,6 +206,9 @@ public:
 
   /// Access coefficients (const)
   const FormCoefficients& coeffs() const { return _coeffs; }
+
+  /// Access form integrals (non-const)
+  FormIntegrals& integrals() { return _integrals; }
 
   /// Access form integrals (const)
   const FormIntegrals& integrals() const { return _integrals; }
