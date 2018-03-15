@@ -10,7 +10,7 @@ jobs:
           command: apt-get -y update && apt-get -y install python3-tk
       - run:
           name: Install/update Python dependencies
-          command: pip3 install flake8 matplotlib pytest pytest-xdist sphinx sphinx_rtd_theme --upgrade
+          command: pip3 install flake8 matplotlib numba pytest pytest-xdist sphinx sphinx_rtd_theme --upgrade
       - run:
           name: Install FEniCS Python components
           command: |
@@ -72,6 +72,7 @@ jobs:
           command: |
             cd python/test
             python3 -m pytest unit/fem/test_assembler.py
+            python3 -m pytest unit/fem/test_numba_assembly.py
             python3 -m pytest unit/function
             python3 -m pytest unit/geometry/test_bounding_box_tree.py
             python3 -m pytest unit/io
