@@ -71,6 +71,7 @@ public:
       _cell_tabulate_tensor.push_back(std::bind(
           &ufc::cell_integral::tabulate_tensor, ci, std::placeholders::_1,
           std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+      _cell_enabled_coefficients.push_back(ci->enabled_coefficients());
     }
 
     // Exterior facet integrals
@@ -177,12 +178,13 @@ public:
                                                   const double*, int))
   {
     _cell_tabulate_tensor.resize(i + 1);
+    _cell_enabled_coefficients.resize(i + 1);
     _cell_tabulate_tensor[i] = fn;
   }
 
   const std::vector<bool>& cell_enabled_coefficients(int i) const
   {
-    return _cell_enabled_coefficients[0];
+    return _cell_enabled_coefficients[i];
   }
 
   /// Number of integrals of given type
