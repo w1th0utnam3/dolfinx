@@ -162,8 +162,10 @@ the form file) defined relative to this mesh, we do as follows
      common::SubSystemsManager::init_petsc(argc, argv);
 
      // Create mesh and function space
-     std::array<geometry::Point, 2> pt = {geometry::Point(0.,0.), geometry::Point(1.,1.)};
-     auto mesh = std::make_shared<mesh::Mesh>(generation::RectangleMesh::create(MPI_COMM_WORLD, pt, {{32, 32}}, mesh::CellType::Type::triangle));
+     EigenPointVector x0, x1;
+     x0 << 0.0, 0.0, 0.0;
+     x1 << 1.0, 1.0, 0.0;
+     auto mesh = std::make_shared<mesh::Mesh>(generation::RectangleMesh::create(MPI_COMM_WORLD, {x0, x1}, {{32, 32}}, mesh::CellType::Type::triangle));
      auto V = std::make_shared<Poisson::FunctionSpace>(mesh);
 
 Now, the Dirichlet boundary condition (:math:`u = 0`) can be created

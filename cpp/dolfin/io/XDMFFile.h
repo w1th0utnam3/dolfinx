@@ -44,11 +44,6 @@ class Function;
 class FunctionSpace;
 }
 
-namespace geometry
-{
-class Point;
-}
-
 namespace mesh
 {
 class Mesh;

@@ -16,10 +16,6 @@
 namespace dolfin
 {
 
-namespace geometry
-{
-  class Point;
-}
 namespace generation
 {
 
@@ -52,7 +48,8 @@ public:
   ///         {8,
   ///         8});
   /// @endcode
-  static mesh::Mesh create(MPI_Comm comm, const std::array<EigenPointVector, 2>& p,
+  static mesh::Mesh create(MPI_Comm comm,
+                           const std::array<EigenPointVector, 2>& p,
                            std::array<std::size_t, 2> n,
                            mesh::CellType::Type cell_type,
                            std::string diagonal = "right")
@@ -64,7 +61,7 @@ public:
     else
     {
       log::dolfin_error("RectangleMesh.h", "generate rectangle mesh",
-                   "Wrong cell type '%d'", cell_type);
+                        "Wrong cell type '%d'", cell_type);
     }
 
     // Will never reach this point
@@ -73,11 +70,13 @@ public:
 
 private:
   // Build mesh
-  static mesh::Mesh build_tri(MPI_Comm comm, const std::array<EigenPointVector, 2>& p,
+  static mesh::Mesh build_tri(MPI_Comm comm,
+                              const std::array<EigenPointVector, 2>& p,
                               std::array<std::size_t, 2> n,
                               std::string diagonal = "right");
 
-  static mesh::Mesh build_quad(MPI_Comm comm, const std::array<EigenPointVector, 2>& p,
+  static mesh::Mesh build_quad(MPI_Comm comm,
+                               const std::array<EigenPointVector, 2>& p,
                                std::array<std::size_t, 2> n);
 };
 }
