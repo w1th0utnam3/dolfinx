@@ -18,10 +18,6 @@ namespace common
 class Variable;
 }
 
-namespace geometry
-{
-class Point;
-}
 
 namespace log
 {
@@ -72,9 +68,6 @@ public:
 
   /// Output for variable (calling str() method)
   LogStream& operator<<(const common::Variable& variable);
-
-  /// Output for point (not subclass of common::Variable for efficiency)
-  LogStream& operator<<(const geometry::Point& point);
 
   /// Set precisionPoi
   void setprecision(std::streamsize n);

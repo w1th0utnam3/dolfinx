@@ -211,21 +211,21 @@ double TriangleCell::squared_distance(const EigenPointVector& point,
   const double d1 = ab.dot(ap);
   const double d2 = ac.dot(ap);
   if (d1 <= 0.0 && d2 <= 0.0)
-    return p.squared_distance(a) + pn * pn;
+    return (p - a).squaredNorm() + pn * pn;
 
   // Check if point is in vertex region outside B
   const EigenPointVector bp = p - b;
   const double d3 = ab.dot(bp);
   const double d4 = ac.dot(bp);
   if (d3 >= 0.0 && d4 <= d3)
-    return p.squared_distance(b) + pn * pn;
+    return (p - b).squaredNorm() + pn * pn;
 
   // Check if point is in edge region of AB and if so compute projection
   const double vc = d1 * d4 - d3 * d2;
   if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0)
   {
     const double v = d1 / (d1 - d3);
-    return p.squared_distance(a + ab * v) + pn * pn;
+    return (p - (a + ab * v)).squaredNorm() + pn * pn;
   }
 
   // Check if point is in vertex region outside C
@@ -233,7 +233,7 @@ double TriangleCell::squared_distance(const EigenPointVector& point,
   const double d5 = ab.dot(cp);
   const double d6 = ac.dot(cp);
   if (d6 >= 0.0 && d5 <= d6)
-    return p.squared_distance(c) + pn * pn;
+    return (p - c).squaredNorm() + pn * pn;
 
   // Check if point is in edge region of AC and if so compute
   // projection
@@ -241,7 +241,7 @@ double TriangleCell::squared_distance(const EigenPointVector& point,
   if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0)
   {
     const double w = d2 / (d2 - d6);
-    return p.squared_distance(a + ac * w) + pn * pn;
+    return (p - (a + ac * w)).squaredNorm() + pn * pn;
   }
 
   // Check if point is in edge region of BC and if so compute
@@ -250,7 +250,7 @@ double TriangleCell::squared_distance(const EigenPointVector& point,
   if (va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0)
   {
     const double w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-    return p.squared_distance(b + (c - b) * w) + pn * pn;
+    return (p - (b + (c - b) * w)).squaredNorm() + pn * pn;
   }
 
   // Point is inside triangle so return distance to plane
@@ -263,7 +263,7 @@ double TriangleCell::normal(const Cell& cell, std::size_t facet,
   return normal(cell, facet)[i];
 }
 //-----------------------------------------------------------------------------
-geometry::Point TriangleCell::normal(const Cell& cell, std::size_t facet) const
+EigenPointVector TriangleCell::normal(const Cell& cell, std::size_t facet) const
 {
   // Make sure we have facets
   cell.mesh().init(2, 1);
@@ -356,7 +356,7 @@ double TriangleCell::facet_area(const Cell& cell, std::size_t facet) const
   const EigenPointVector p0 = geometry.point(v0);
   const EigenPointVector p1 = geometry.point(v1);
 
-  return p1.distance(p0);
+  return (p1 - p0).norm();
 }
 //-----------------------------------------------------------------------------
 void TriangleCell::order(

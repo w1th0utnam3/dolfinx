@@ -7,7 +7,7 @@
 #pragma once
 
 #include "MeshEntity.h"
-#include <dolfin/geometry/Point.h>
+#include <dolfin/common/types.h>
 
 namespace dolfin
 {
@@ -31,7 +31,7 @@ public:
   double area() const;
 
   /// Compute normal to the face
-  geometry::Point normal() const;
+  EigenPointVector normal() const;
 };
 }
 }

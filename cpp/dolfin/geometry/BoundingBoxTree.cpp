@@ -13,6 +13,7 @@
 #include "CollisionPredicates.h"
 #include <dolfin/common/MPI.h>
 #include <dolfin/common/constants.h>
+#include <dolfin/common/types.h>
 #include <dolfin/mesh/Cell.h>
 #include <dolfin/mesh/Mesh.h>
 #include <dolfin/mesh/MeshEntity.h>
@@ -85,7 +86,7 @@ void BoundingBoxTree::build(const mesh::Mesh& mesh, std::size_t tdim)
   }
 }
 //-----------------------------------------------------------------------------
-void BoundingBoxTree::build(const std::vector<Point>& points)
+void BoundingBoxTree::build(const std::vector<EigenPointVector>& points)
 {
   // Clear existing data if any
   clear();
@@ -104,7 +105,7 @@ void BoundingBoxTree::build(const std::vector<Point>& points)
 }
 //-----------------------------------------------------------------------------
 std::vector<unsigned int>
-BoundingBoxTree::compute_collisions(const Point& point) const
+BoundingBoxTree::compute_collisions(const EigenPointVector& point) const
 {
   // Call recursive find function
   std::vector<unsigned int> entities;
@@ -132,15 +133,17 @@ BoundingBoxTree::compute_collisions(const BoundingBoxTree& tree) const
 }
 //-----------------------------------------------------------------------------
 std::vector<unsigned int>
-BoundingBoxTree::compute_entity_collisions(const Point& point,
+BoundingBoxTree::compute_entity_collisions(const EigenPointVector& point,
                                            const mesh::Mesh& mesh) const
 {
-  // Point in entity only implemented for cells. Consider extending this.
+  // EigenPointVector in entity only implemented for cells. Consider extending
+  // this.
   if (_tdim != mesh.topology().dim())
   {
-    log::dolfin_error("BoundingBoxTree.cpp",
-                      "compute collision between point and mesh entities",
-                      "Point-in-entity is only implemented for cells");
+    log::dolfin_error(
+        "BoundingBoxTree.cpp",
+        "compute collision between point and mesh entities",
+        "EigenPointVector-in-entity is only implemented for cells");
   }
 
   // Call recursive find function to compute bounding box candidates
@@ -151,13 +154,13 @@ BoundingBoxTree::compute_entity_collisions(const Point& point,
 }
 //-----------------------------------------------------------------------------
 std::vector<unsigned int>
-BoundingBoxTree::compute_process_collisions(const Point& point) const
+BoundingBoxTree::compute_process_collisions(const EigenPointVector& point) const
 {
   if (_global_tree)
     return _global_tree->compute_collisions(point);
 
   std::vector<unsigned int> collision;
-  if (point_in_bbox(point.coordinates(), num_bboxes() - 1))
+  if (point_in_bbox(point.data(), num_bboxes() - 1))
     collision.push_back(0);
 
   return collision;
@@ -183,22 +186,25 @@ BoundingBoxTree::compute_entity_collisions(const BoundingBoxTree& tree,
   return std::make_pair(entities_A, entities_B);
 }
 //-----------------------------------------------------------------------------
-unsigned int BoundingBoxTree::compute_first_collision(const Point& point) const
+unsigned int
+BoundingBoxTree::compute_first_collision(const EigenPointVector& point) const
 {
   // Call recursive find function
   return _compute_first_collision(*this, point, num_bboxes() - 1);
 }
 //-----------------------------------------------------------------------------
 unsigned int
-BoundingBoxTree::compute_first_entity_collision(const Point& point,
+BoundingBoxTree::compute_first_entity_collision(const EigenPointVector& point,
                                                 const mesh::Mesh& mesh) const
 {
-  // Point in entity only implemented for cells. Consider extending this.
+  // EigenPointVector in entity only implemented for cells. Consider extending
+  // this.
   if (_tdim != mesh.topology().dim())
   {
-    log::dolfin_error("BoundingBoxTree.cpp",
-                      "compute collision between point and mesh entities",
-                      "Point-in-entity is only implemented for cells");
+    log::dolfin_error(
+        "BoundingBoxTree.cpp",
+        "compute collision between point and mesh entities",
+        "EigenPointVector-in-entity is only implemented for cells");
   }
 
   // Call recursive find function
@@ -206,7 +212,7 @@ BoundingBoxTree::compute_first_entity_collision(const Point& point,
 }
 //-----------------------------------------------------------------------------
 std::pair<unsigned int, double>
-BoundingBoxTree::compute_closest_entity(const Point& point,
+BoundingBoxTree::compute_closest_entity(const EigenPointVector& point,
                                         const mesh::Mesh& mesh) const
 {
   // Closest entity only implemented for cells. Consider extending this.
@@ -244,7 +250,7 @@ BoundingBoxTree::compute_closest_entity(const Point& point,
 }
 //-----------------------------------------------------------------------------
 std::pair<unsigned int, double>
-BoundingBoxTree::compute_closest_point(const Point& point) const
+BoundingBoxTree::compute_closest_point(const EigenPointVector& point) const
 {
   // Closest point only implemented for point cloud
   if (_tdim != 0)
@@ -258,8 +264,7 @@ BoundingBoxTree::compute_closest_point(const Point& point) const
 
   // Get initial guess by picking the distance to a "random" point
   unsigned int closest_point = 0;
-  double R2
-      = compute_squared_distance_point(point.coordinates(), closest_point);
+  double R2 = compute_squared_distance_point(point.data(), closest_point);
 
   // Call recursive find function
   _compute_closest_point(*this, point, num_bboxes() - 1, closest_point, R2);
@@ -318,7 +323,7 @@ BoundingBoxTree::_build(const std::vector<double>& leaf_bboxes,
 }
 //-----------------------------------------------------------------------------
 unsigned int
-BoundingBoxTree::_build(const std::vector<Point>& points,
+BoundingBoxTree::_build(const std::vector<EigenPointVector>& points,
                         const std::vector<unsigned int>::iterator& begin,
                         const std::vector<unsigned int>::iterator& end)
 {
@@ -355,7 +360,8 @@ BoundingBoxTree::_build(const std::vector<Point>& points,
 }
 //-----------------------------------------------------------------------------
 void BoundingBoxTree::_compute_collisions(const BoundingBoxTree& tree,
-                                          const Point& point, unsigned int node,
+                                          const EigenPointVector& point,
+                                          unsigned int node,
                                           std::vector<unsigned int>& entities,
                                           const mesh::Mesh* mesh)
 {
@@ -363,7 +369,7 @@ void BoundingBoxTree::_compute_collisions(const BoundingBoxTree& tree,
   const BBox& bbox = tree._bboxes[node];
 
   // If point is not in bounding box, then don't search further
-  if (!tree.point_in_bbox(point.coordinates(), node))
+  if (!tree.point_in_bbox(point.data(), node))
     return;
 
   // If box is a leaf (which we know contains the point), then add it
@@ -483,7 +489,8 @@ void BoundingBoxTree::_compute_collisions(
 //-----------------------------------------------------------------------------
 unsigned int
 BoundingBoxTree::_compute_first_collision(const BoundingBoxTree& tree,
-                                          const Point& point, unsigned int node)
+                                          const EigenPointVector& point,
+                                          unsigned int node)
 {
   // Get max integer to signify not found
   unsigned int not_found = std::numeric_limits<unsigned int>::max();
@@ -492,7 +499,7 @@ BoundingBoxTree::_compute_first_collision(const BoundingBoxTree& tree,
   const BBox& bbox = tree._bboxes[node];
 
   // If point is not in bounding box, then don't search further
-  if (!tree.point_in_bbox(point.coordinates(), node))
+  if (!tree.point_in_bbox(point.data(), node))
     return not_found;
 
   // If box is a leaf (which we know contains the point), then return it
@@ -512,13 +519,13 @@ BoundingBoxTree::_compute_first_collision(const BoundingBoxTree& tree,
       return c1;
   }
 
-  // Point not found
+  // EigenPointVector not found
   return not_found;
 }
 //-----------------------------------------------------------------------------
 unsigned int BoundingBoxTree::_compute_first_entity_collision(
-    const BoundingBoxTree& tree, const Point& point, unsigned int node,
-    const mesh::Mesh& mesh)
+    const BoundingBoxTree& tree, const EigenPointVector& point,
+    unsigned int node, const mesh::Mesh& mesh)
 {
   // Get max integer to signify not found
   unsigned int not_found = std::numeric_limits<unsigned int>::max();
@@ -527,7 +534,7 @@ unsigned int BoundingBoxTree::_compute_first_entity_collision(
   const BBox& bbox = tree._bboxes[node];
 
   // If point is not in bounding box, then don't search further
-  if (!tree.point_in_bbox(point.coordinates(), node))
+  if (!tree.point_in_bbox(point.data(), node))
     return not_found;
 
   // If box is a leaf (which we know contains the point), then check entity
@@ -557,20 +564,22 @@ unsigned int BoundingBoxTree::_compute_first_entity_collision(
       return c1;
   }
 
-  // Point not found
+  // EigenPointVector not found
   return not_found;
 }
 //-----------------------------------------------------------------------------
-void BoundingBoxTree::_compute_closest_entity(
-    const BoundingBoxTree& tree, const Point& point, unsigned int node,
-    const mesh::Mesh& mesh, unsigned int& closest_entity, double& R2)
+void BoundingBoxTree::_compute_closest_entity(const BoundingBoxTree& tree,
+                                              const EigenPointVector& point,
+                                              unsigned int node,
+                                              const mesh::Mesh& mesh,
+                                              unsigned int& closest_entity,
+                                              double& R2)
 {
   // Get bounding box for current node
   const BBox& bbox = tree._bboxes[node];
 
   // If bounding box is outside radius, then don't search further
-  const double r2
-      = tree.compute_squared_distance_bbox(point.coordinates(), node);
+  const double r2 = tree.compute_squared_distance_bbox(point.data(), node);
   if (r2 > R2)
     return;
 
@@ -602,7 +611,7 @@ void BoundingBoxTree::_compute_closest_entity(
 }
 //-----------------------------------------------------------------------------
 void BoundingBoxTree::_compute_closest_point(const BoundingBoxTree& tree,
-                                             const Point& point,
+                                             const EigenPointVector& point,
                                              unsigned int node,
                                              unsigned int& closest_point,
                                              double& R2)
@@ -613,8 +622,7 @@ void BoundingBoxTree::_compute_closest_point(const BoundingBoxTree& tree,
   // If box is leaf, then compute distance and shrink radius
   if (tree.is_leaf(bbox, node))
   {
-    const double r2
-        = tree.compute_squared_distance_point(point.coordinates(), node);
+    const double r2 = tree.compute_squared_distance_point(point.data(), node);
     if (r2 < R2)
     {
       closest_point = bbox.child_1;
@@ -624,8 +632,7 @@ void BoundingBoxTree::_compute_closest_point(const BoundingBoxTree& tree,
   else
   {
     // If bounding box is outside radius, then don't search further
-    const double r2
-        = tree.compute_squared_distance_bbox(point.coordinates(), node);
+    const double r2 = tree.compute_squared_distance_bbox(point.data(), node);
     if (r2 > R2)
       return;
 
@@ -643,7 +650,7 @@ void BoundingBoxTree::build_point_search_tree(const mesh::Mesh& mesh) const
   log::info("Building point search tree to accelerate distance queries.");
 
   // Create list of midpoints for all cells
-  std::vector<Point> points;
+  std::vector<EigenPointVector> points;
   for (auto& cell : mesh::MeshRange<mesh::Cell>(mesh))
     points.push_back(cell.midpoint());
 
@@ -669,7 +676,7 @@ void BoundingBoxTree::compute_bbox_of_entity(
   assert(num_vertices >= 2);
 
   // Get coordinates for first vertex
-  const Eigen::Ref<const EigenVectorXd> x = geometry.x(vertices[0]);
+  const Eigen::Ref<const Eigen::VectorXd> x = geometry.x(vertices[0]);
   for (std::size_t j = 0; j < _gdim; ++j)
     xmin[j] = xmax[j] = x[j];
 
@@ -677,7 +684,7 @@ void BoundingBoxTree::compute_bbox_of_entity(
   for (unsigned int i = 1; i < num_vertices; ++i)
   {
     // const double* x = geometry.x(vertices[i]);
-    const Eigen::Ref<const EigenVectorXd> x = geometry.x(vertices[i]);
+    const Eigen::Ref<const Eigen::VectorXd> x = geometry.x(vertices[i]);
     for (std::size_t j = 0; j < _gdim; ++j)
     {
       xmin[j] = std::min(xmin[j], x[j]);
@@ -687,15 +694,15 @@ void BoundingBoxTree::compute_bbox_of_entity(
 }
 //-----------------------------------------------------------------------------
 void BoundingBoxTree::sort_points(
-    std::size_t axis, const std::vector<Point>& points,
+    std::size_t axis, const std::vector<EigenPointVector>& points,
     const std::vector<unsigned int>::iterator& begin,
     const std::vector<unsigned int>::iterator& middle,
     const std::vector<unsigned int>::iterator& end)
 {
   // Comparison lambda function with capture
   auto cmp = [&points, &axis](unsigned int i, unsigned int j) -> bool {
-    const double* pi = points[i].coordinates();
-    const double* pj = points[j].coordinates();
+    const double* pi = points[i].data();
+    const double* pj = points[j].data();
     return pi[axis] < pj[axis];
   };
 
@@ -750,13 +757,14 @@ void BoundingBoxTree::sort_bboxes(
 //-----------------------------------------------------------------------------
 /// Compute bounding box of points
 void BoundingBoxTree::compute_bbox_of_points(
-    double* bbox, std::size_t& axis, const std::vector<Point>& points,
+    double* bbox, std::size_t& axis,
+    const std::vector<EigenPointVector>& points,
     const std::vector<unsigned int>::iterator& begin,
     const std::vector<unsigned int>::iterator& end)
 {
   // Get coordinates for first point
   auto it = begin;
-  const double* p = points[*it].coordinates();
+  const double* p = points[*it].data();
   for (unsigned int i = 0; i != _gdim; ++i)
   {
     bbox[i] = p[i];
@@ -766,7 +774,7 @@ void BoundingBoxTree::compute_bbox_of_points(
   // Compute min and max over remaining points
   for (; it != end; ++it)
   {
-    const double* p = points[*it].coordinates();
+    const double* p = points[*it].data();
     for (unsigned int i = 0; i != _gdim; ++i)
     {
       bbox[i] = std::min(p[i], bbox[i]);

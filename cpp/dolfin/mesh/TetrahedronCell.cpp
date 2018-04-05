@@ -188,12 +188,12 @@ double TetrahedronCell::circumradius(const MeshEntity& tetrahedron) const
   const EigenPointVector p3 = geometry.point(vertices[3]);
 
   // Compute side lengths
-  const double a = p1.distance(p2);
-  const double b = p0.distance(p2);
-  const double c = p0.distance(p1);
-  const double aa = p0.distance(p3);
-  const double bb = p1.distance(p3);
-  const double cc = p2.distance(p3);
+  const double a = (p1 - p2).norm();
+  const double b = (p0 - p2).norm();
+  const double c = (p0 - p1).norm();
+  const double aa = (p0 - p3).norm();
+  const double bb = (p1 - p3).norm();
+  const double cc = (p2 - p3).norm();
 
   // Compute "area" of triangle with strange side lengths
   const double la = a * aa;

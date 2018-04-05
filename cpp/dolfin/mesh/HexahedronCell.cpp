@@ -168,7 +168,7 @@ double HexahedronCell::circumradius(const MeshEntity& cell) const
 }
 //-----------------------------------------------------------------------------
 double HexahedronCell::squared_distance(const mesh::Cell& cell,
-                                        const geometry::Point& point) const
+                                        const EigenPointVector& point) const
 {
   dolfin_not_implemented();
   return 0.0;
@@ -180,17 +180,17 @@ double HexahedronCell::normal(const mesh::Cell& cell, std::size_t facet,
   return normal(cell, facet)[i];
 }
 //-----------------------------------------------------------------------------
-geometry::Point HexahedronCell::normal(const mesh::Cell& cell,
-                                       std::size_t facet) const
+EigenPointVector HexahedronCell::normal(const mesh::Cell& cell,
+                                        std::size_t facet) const
 {
   dolfin_not_implemented();
-  return geometry::Point();
+  return EigenPointVector();
 }
 //-----------------------------------------------------------------------------
-geometry::Point HexahedronCell::cell_normal(const mesh::Cell& cell) const
+EigenPointVector HexahedronCell::cell_normal(const mesh::Cell& cell) const
 {
   dolfin_not_implemented();
-  return geometry::Point();
+  return EigenPointVector();
 }
 //-----------------------------------------------------------------------------
 double HexahedronCell::facet_area(const mesh::Cell& cell,

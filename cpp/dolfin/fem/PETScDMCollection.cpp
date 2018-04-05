@@ -329,8 +329,11 @@ std::shared_ptr<la::PETScMatrix> PETScDMCollection::create_transfer_matrix(
   // Iterate through fine points on this process
   for (const auto& map_it : coords_to_dofs)
   {
-    const std::vector<double>& _x = map_it.first;
-    geometry::Point curr_point(gdim, _x.data());
+    Eigen::Map<const Eigen::VectorXd> _x(map_it.first.data(),
+                                         map_it.first.size());
+    EigenPointVector curr_point;
+    curr_point.setZero();
+    curr_point << _x;
 
     // Compute which processes' BBoxes contain the fine point
     found_ranks = treec->compute_process_collisions(curr_point);
@@ -338,7 +341,8 @@ std::shared_ptr<la::PETScMatrix> PETScDMCollection::create_transfer_matrix(
     if (found_ranks.empty())
     {
       // Point is outside the domain
-      exterior_points.insert(exterior_points.end(), _x.begin(), _x.end());
+      exterior_points.insert(exterior_points.end(), map_it.first.begin(),
+                             map_it.first.end());
       exterior_global_indices.insert(exterior_global_indices.end(),
                                      map_it.second.begin(),
                                      map_it.second.end());
@@ -351,7 +355,8 @@ std::shared_ptr<la::PETScMatrix> PETScDMCollection::create_transfer_matrix(
       for (auto& rp : found_ranks)
       {
         proc_list.push_back(rp);
-        send_found[rp].insert(send_found[rp].end(), _x.begin(), _x.end());
+        send_found[rp].insert(send_found[rp].end(), map_it.first.begin(),
+                              map_it.first.end());
         // Also save the indices, but don't send yet.
         send_found_global_row_indices[rp].insert(
             send_found_global_row_indices[rp].end(), map_it.second.begin(),
@@ -369,10 +374,13 @@ std::shared_ptr<la::PETScMatrix> PETScDMCollection::create_transfer_matrix(
   std::vector<std::vector<unsigned int>> send_ids(mpi_size);
   for (unsigned int p = 0; p < mpi_size; ++p)
   {
-    unsigned int n_points = recv_found[p].size() / gdim;
-    for (unsigned int i = 0; i < n_points; ++i)
+    Eigen::Map<const EigenRowArrayXXd> recv_pts(
+        recv_found[p].data(), recv_found[p].size() / gdim, gdim);
+    for (unsigned int i = 0; i < recv_pts.rows(); ++i)
     {
-      const geometry::Point curr_point(gdim, &recv_found[p][i * gdim]);
+      EigenPointVector curr_point;
+      curr_point.setZero();
+      curr_point << recv_pts.row(i);
       send_ids[p].push_back(
           treec->compute_first_entity_collision(curr_point, meshc));
     }
@@ -503,11 +511,16 @@ std::shared_ptr<la::PETScMatrix> PETScDMCollection::create_transfer_matrix(
   EigenRowArrayXXd coordinate_dofs; // cell dofs coordinates vector
 
   // Loop over the found coarse cells
+  Eigen::Map<EigenRowArrayXXd> f_points(found_points.data(),
+                                        found_points.size() / gdim, gdim);
+
   for (unsigned int i = 0; i < found_ids.size(); ++i)
   {
     // Get coarse cell id and point
     unsigned int id = found_ids[i];
-    geometry::Point curr_point(gdim, &found_points[i * gdim]);
+    EigenPointVector curr_point;
+    curr_point.setZero();
+    curr_point << f_points.row(i);
 
     // Create coarse cell
     mesh::Cell coarse_cell(meshc, static_cast<std::size_t>(id));
@@ -664,10 +677,13 @@ void PETScDMCollection::find_exterior_points(
 
   for (const auto& p : recv_points)
   {
-    unsigned int n_points = p.size() / dim;
-    for (unsigned int i = 0; i < n_points; ++i)
+    Eigen::Map<const EigenRowArrayXXd> pts(p.data(), p.size() / dim, dim);
+    for (unsigned int i = 0; i < pts.rows(); ++i)
     {
-      const geometry::Point curr_point(dim, &p[i * dim]);
+      EigenPointVector curr_point;
+      curr_point.setZero();
+      curr_point << pts.row(i);
+
       std::pair<unsigned int, double> find_point
           = treec->compute_closest_entity(curr_point, meshc);
       send_distance.push_back(find_point.second);

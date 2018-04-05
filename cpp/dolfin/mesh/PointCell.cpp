@@ -70,7 +70,7 @@ double PointCell::circumradius(const MeshEntity& point) const
 }
 //-----------------------------------------------------------------------------
 double PointCell::squared_distance(const Cell& cell,
-                                   const geometry::Point& point) const
+                                   const EigenPointVector& point) const
 {
   dolfin_not_implemented();
   return 0.0;
@@ -84,18 +84,18 @@ double PointCell::normal(const Cell& cell, std::size_t facet,
   return 0.0;
 }
 //-----------------------------------------------------------------------------
-geometry::Point PointCell::normal(const Cell& cell, std::size_t facet) const
+EigenPointVector PointCell::normal(const Cell& cell, std::size_t facet) const
 {
   log::dolfin_error("PointCell.cpp", "find normal vector of cell",
                     "Normal vector of a point cell is not defined");
-  return geometry::Point();
+  return EigenPointVector();
 }
 //-----------------------------------------------------------------------------
-geometry::Point PointCell::cell_normal(const Cell& cell) const
+EigenPointVector PointCell::cell_normal(const Cell& cell) const
 {
   log::dolfin_error("PointCell.cpp", "compute cell normal",
                     "Normal vector of a point cell is not defined");
-  return geometry::Point();
+  return EigenPointVector();
 }
 //-----------------------------------------------------------------------------
 double PointCell::facet_area(const Cell& cell, std::size_t facet) const

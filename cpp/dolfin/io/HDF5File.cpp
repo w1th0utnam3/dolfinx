@@ -17,7 +17,6 @@
 #include <dolfin/fem/GenericDofMap.h>
 #include <dolfin/function/Function.h>
 #include <dolfin/function/FunctionSpace.h>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/la/PETScVector.h>
 #include <dolfin/log/log.h>
 #include <dolfin/mesh/Cell.h>
@@ -97,7 +96,7 @@ void HDF5File::flush()
   HDF5Interface::flush_file(_hdf5_file_id);
 }
 //-----------------------------------------------------------------------------
-void HDF5File::write(const std::vector<geometry::Point>& points,
+void HDF5File::write(const std::vector<EigenPointVector>& points,
                      const std::string dataset_name)
 {
   assert(points.size() > 0);

@@ -8,6 +8,7 @@
 
 #include "HDF5Interface.h"
 #include <dolfin/common/MPI.h>
+#include <dolfin/common/types.h>
 #include <dolfin/common/Variable.h>
 #include <dolfin/function/Function.h>
 #include <dolfin/la/PETScVector.h>
@@ -27,11 +28,6 @@ namespace function
 {
 // class Function;
 class FunctionSpace;
-}
-
-namespace geometry
-{
-class Point;
 }
 
 namespace mesh
@@ -68,7 +64,7 @@ public:
   void flush();
 
   /// Write points to file
-  void write(const std::vector<geometry::Point>& points,
+  void write(const std::vector<EigenPointVector>& points,
              const std::string name);
 
   /// Write simple vector of double to file

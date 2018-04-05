@@ -7,7 +7,6 @@
 #include "Edge.h"
 #include "Vertex.h"
 #include <cmath>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/mesh/MeshGeometry.h>
 
 using namespace dolfin;
@@ -22,14 +21,10 @@ double Edge::length() const
   const Vertex v0(*_mesh, vertices[0]);
   const Vertex v1(*_mesh, vertices[1]);
 
-  const geometry::Point p0 = v0.point();
-  const geometry::Point p1 = v1.point();
+  const EigenPointVector p0 = v0.point();
+  const EigenPointVector p1 = v1.point();
 
-  double length(sqrt((p1[0] - p0[0]) * (p1[0] - p0[0])
-                     + (p1[1] - p0[1]) * (p1[1] - p0[1])
-                     + (p1[2] - p0[2]) * (p1[2] - p0[2])));
-
-  return length;
+  return (p0 - p1).norm();
 }
 //-----------------------------------------------------------------------------
 double Edge::dot(const Edge& edge) const
@@ -40,10 +35,10 @@ double Edge::dot(const Edge& edge) const
   assert(v1);
 
   const MeshGeometry& g = _mesh->geometry();
-  const Eigen::Ref<const EigenVectorXd> x00 = g.x(v0[0]);
-  const Eigen::Ref<const EigenVectorXd> x01 = g.x(v0[1]);
-  const Eigen::Ref<const EigenVectorXd> x10 = g.x(v1[0]);
-  const Eigen::Ref<const EigenVectorXd> x11 = g.x(v1[1]);
+  const Eigen::Ref<const Eigen::VectorXd> x00 = g.x(v0[0]);
+  const Eigen::Ref<const Eigen::VectorXd> x01 = g.x(v0[1]);
+  const Eigen::Ref<const Eigen::VectorXd> x10 = g.x(v1[0]);
+  const Eigen::Ref<const Eigen::VectorXd> x11 = g.x(v1[1]);
 
   double sum = 0.0;
   const std::size_t gdim = g.dim();

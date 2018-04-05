@@ -65,7 +65,7 @@ public:
   }
 
   /// Return coordinate with local index n as a 3D point value
-  Eigen::VectorXd point(std::size_t n) const;
+  EigenPointVector point(std::size_t n) const;
 
   // Should this return an Eigen::Ref?
   /// Return array of coordinates for all points

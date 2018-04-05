@@ -8,7 +8,6 @@
 #include "log.h"
 #include <dolfin/common/Variable.h>
 #include <dolfin/common/constants.h>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/mesh/Mesh.h>
 #include <dolfin/mesh/MeshEntity.h>
 
@@ -91,12 +90,6 @@ LogStream& LogStream::operator<<(std::complex<double> z)
 LogStream& LogStream::operator<<(const common::Variable& variable)
 {
   buffer << variable.str(false);
-  return *this;
-}
-//-----------------------------------------------------------------------------
-LogStream& LogStream::operator<<(const geometry::Point& point)
-{
-  buffer << point.str(false);
   return *this;
 }
 //-----------------------------------------------------------------------------

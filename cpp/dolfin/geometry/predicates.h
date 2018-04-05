@@ -1,11 +1,13 @@
 
+#include <cstdlib>
+#include <dolfin/common/types.h>
+
 #pragma once
 
 namespace dolfin
 {
 namespace geometry
 {
-class Point;
 
 /// Initialize tolerances for exact arithmetic
 void exactinit();
@@ -13,11 +15,13 @@ void exactinit();
 /// Compute relative orientation of point x wrt segment [a, b]
 double orient1d(double a, double b, double x);
 
-/// Convenience function using dolfin::Point
-double orient2d(const Point& a, const Point& b, const Point& c);
+/// Convenience function using dolfin::EigenPointVector
+double orient2d(const EigenPointVector& a, const EigenPointVector& b,
+                const EigenPointVector& c);
 
-/// Convenience function using dolfin::Point
-double orient3d(const Point& a, const Point& b, const Point& c, const Point& d);
+/// Convenience function using dolfin::EigenPointVector
+double orient3d(const EigenPointVector& a, const EigenPointVector& b,
+                const EigenPointVector& c, const EigenPointVector& d);
 
 /// Class used for automatic initialization of tolerances at startup.
 /// A global instance is defined inside predicates.cpp to ensure that

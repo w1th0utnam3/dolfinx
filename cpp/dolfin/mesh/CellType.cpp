@@ -141,7 +141,7 @@ double CellType::h(const MeshEntity& entity) const
   for (int i = 0; i < num_vertices; ++i)
   {
     for (int j = i + 1; j < num_vertices; ++j)
-      h = std::max(h, points[i].distance(points[j]));
+      h = std::max(h, (points[i] - points[j]).norm());
   }
 
   return h;

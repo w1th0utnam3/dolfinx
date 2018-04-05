@@ -16,7 +16,6 @@
 #include <dolfin/fem/FiniteElement.h>
 #include <dolfin/fem/GenericDofMap.h>
 #include <dolfin/geometry/BoundingBoxTree.h>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/la/PETScVector.h>
 #include <dolfin/log/log.h>
 #include <dolfin/mesh/Mesh.h>
@@ -194,8 +193,8 @@ void Function::operator=(const function::FunctionAXPY& axpy)
     *_vector *= axpy.pairs()[0].first;
 
   // Start from item 2 and axpy
-  std::vector<std::pair<double,
-                        std::shared_ptr<const Function>>>::const_iterator it;
+  std::vector<
+      std::pair<double, std::shared_ptr<const Function>>>::const_iterator it;
   for (it = axpy.pairs().begin() + 1; it != axpy.pairs().end(); it++)
   {
     assert(it->second);
@@ -235,8 +234,9 @@ void Function::eval(Eigen::Ref<EigenRowArrayXXd> values,
   // Find the cell that contains x
   for (unsigned int i = 0; i != x.rows(); ++i)
   {
-    const double* _x = x.row(i).data();
-    const geometry::Point point(mesh.geometry().dim(), _x);
+    EigenPointVector point;
+    point.setZero();
+    point << x.row(i);
 
     // Get index of first cell containing point
     unsigned int id

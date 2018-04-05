@@ -54,7 +54,7 @@ struct lt_coordinate
   // Tolerance
   const double TOL;
 };
-}
+} // namespace
 
 //-----------------------------------------------------------------------------
 std::map<std::uint32_t, std::pair<std::uint32_t, std::uint32_t>>
@@ -109,9 +109,8 @@ PeriodicBoundaryComputation::compute_periodic_pairs(const Mesh& mesh,
           visited[e.index()] = true;
 
         // Copy entity coordinate
-        const geometry::Point midpoint = e.midpoint();
-        std::copy(midpoint.coordinates(), midpoint.coordinates() + gdim,
-                  x.begin());
+        const EigenPointVector midpoint = e.midpoint();
+        std::copy(midpoint.data(), midpoint.data() + gdim, x.begin());
 
         // Check if entity lies on a 'master' or 'slave' boundary
         if (sub_domain.inside(_x, true)[0])
@@ -303,9 +302,9 @@ PeriodicBoundaryComputation::masters_slaves(std::shared_ptr<const Mesh> mesh,
                      std::vector<std::pair<std::uint32_t, std::uint32_t>>>
       shared_entities_map
       = DistributedMeshTools::compute_shared_entities(*mesh, dim);
-  std::unordered_map<std::uint32_t,
-                     std::vector<std::pair<std::uint32_t, std::uint32_t>>>::
-      const_iterator e;
+  std::unordered_map<
+      std::uint32_t,
+      std::vector<std::pair<std::uint32_t, std::uint32_t>>>::const_iterator e;
   std::vector<std::vector<std::pair<std::uint32_t, std::uint32_t>>>
       shared_entities(mesh->num_entities(dim));
   for (e = shared_entities_map.begin(); e != shared_entities_map.end(); ++e)
