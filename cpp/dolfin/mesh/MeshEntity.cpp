@@ -88,7 +88,7 @@ std::size_t MeshEntity::index(const MeshEntity& entity) const
   return 0;
 }
 //-----------------------------------------------------------------------------
-geometry::Point MeshEntity::midpoint() const
+Eigen::VectorXd MeshEntity::midpoint() const
 {
   // Special case: a vertex is its own midpoint (don't check neighbors)
   if (_dim == 0)
@@ -115,7 +115,8 @@ geometry::Point MeshEntity::midpoint() const
   y /= double(num_vertices);
   z /= double(num_vertices);
 
-  geometry::Point p(x, y, z);
+  Eigen::VectorXd p;
+  p << x, y, z;
   return p;
 }
 //-----------------------------------------------------------------------------
@@ -134,8 +135,7 @@ std::uint32_t MeshEntity::owner() const
                       "Ownership of non-ghost cells is local process");
   }
 
-  assert((int)_mesh->topology().cell_owner().size()
-                > _local_index - offset);
+  assert((int)_mesh->topology().cell_owner().size() > _local_index - offset);
   return _mesh->topology().cell_owner()[_local_index - offset];
 }
 //-----------------------------------------------------------------------------

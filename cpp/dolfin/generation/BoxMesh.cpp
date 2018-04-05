@@ -17,7 +17,7 @@ using namespace dolfin::generation;
 
 //-----------------------------------------------------------------------------
 mesh::Mesh BoxMesh::build_tet(MPI_Comm comm,
-                              const std::array<geometry::Point, 2>& p,
+                              const std::array<EigenPointVector, 2>& p,
                               std::array<std::size_t, 3> n)
 {
   common::Timer timer("Build BoxMesh");
@@ -33,8 +33,8 @@ mesh::Mesh BoxMesh::build_tet(MPI_Comm comm,
   }
 
   // Extract data
-  const geometry::Point& p0 = p[0];
-  const geometry::Point& p1 = p[1];
+  const EigenPointVector& p0 = p[0];
+  const EigenPointVector& p1 = p[1];
   std::size_t nx = n[0];
   std::size_t ny = n[1];
   std::size_t nz = n[2];

@@ -46,7 +46,11 @@ using EigenRowMatrixXd
     = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
 // double Vectors
-using EigenVectorXd = Eigen::Matrix<double, Eigen::Dynamic, 1>;
+// using EigenVectorXd = Eigen::Matrix<double, Eigen::Dynamic, 1>;
+
+// Vector for Point storage
+using EigenPointVector = Eigen::Vector3d;
+
 
 /// Index type for compatibility with linear algebra backend(s)
 #ifdef HAS_PETSC

@@ -12,7 +12,6 @@
 #include "MeshFunction.h"
 #include <Eigen/Dense>
 #include <dolfin/common/types.h>
-#include <dolfin/geometry/Point.h>
 #include <memory>
 
 namespace dolfin
@@ -146,7 +145,7 @@ public:
   ///         The point.
   /// @return     double
   ///         The squared distance to the point.
-  double squared_distance(const geometry::Point& point) const
+  double squared_distance(const EigenPointVector& point) const
   {
     return _mesh->type().squared_distance(*this, point);
   }
@@ -157,7 +156,7 @@ public:
   ///         The point.
   /// @return     double
   ///         The distance to the point.
-  double distance(const geometry::Point& point) const
+  double distance(const EigenPointVector& point) const
   {
     return sqrt(squared_distance(point));
   }
@@ -167,18 +166,18 @@ public:
   /// @param    facet
   ///         Index of facet.
   ///
-  /// @return geometry::Point
+  /// @return EigenPointVector
   ///         Normal of the facet.
-  geometry::Point normal(std::size_t facet) const
+  EigenPointVector normal(std::size_t facet) const
   {
     return _mesh->type().normal(*this, facet);
   }
 
   /// Compute normal to cell itself (viewed as embedded in 3D)
   ///
-  /// @return geometry::Point
+  /// @return EigenPointVector
   ///         Normal of the cell
-  geometry::Point cell_normal() const
+  EigenPointVector cell_normal() const
   {
     return _mesh->type().cell_normal(*this);
   }

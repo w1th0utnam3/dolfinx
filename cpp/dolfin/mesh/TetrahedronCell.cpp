@@ -136,21 +136,24 @@ double TetrahedronCell::volume(const MeshEntity& tetrahedron) const
 
   // Get the coordinates of the four vertices
   const std::int32_t* vertices = tetrahedron.entities(0);
-  const geometry::Point x0 = geometry.point(vertices[0]);
-  const geometry::Point x1 = geometry.point(vertices[1]);
-  const geometry::Point x2 = geometry.point(vertices[2]);
-  const geometry::Point x3 = geometry.point(vertices[3]);
+  const EigenPointVector x0 = geometry.point(vertices[0]);
+  const EigenPointVector x1 = geometry.point(vertices[1]);
+  const EigenPointVector x2 = geometry.point(vertices[2]);
+  const EigenPointVector x3 = geometry.point(vertices[3]);
 
   // Formula for volume from http://mathworld.wolfram.com
-  const double v
-      = (x0[0] * (x1[1] * x2[2] + x3[1] * x1[2] + x2[1] * x3[2] - x2[1] * x1[2]
-                  - x1[1] * x3[2] - x3[1] * x2[2])
-         - x1[0] * (x0[1] * x2[2] + x3[1] * x0[2] + x2[1] * x3[2]
-                    - x2[1] * x0[2] - x0[1] * x3[2] - x3[1] * x2[2])
-         + x2[0] * (x0[1] * x1[2] + x3[1] * x0[2] + x1[1] * x3[2]
-                    - x1[1] * x0[2] - x0[1] * x3[2] - x3[1] * x1[2])
-         - x3[0] * (x0[1] * x1[2] + x1[1] * x2[2] + x2[1] * x0[2]
-                    - x1[1] * x0[2] - x2[1] * x1[2] - x0[1] * x2[2]));
+  const double v = (x0[0]
+                        * (x1[1] * x2[2] + x3[1] * x1[2] + x2[1] * x3[2]
+                           - x2[1] * x1[2] - x1[1] * x3[2] - x3[1] * x2[2])
+                    - x1[0]
+                          * (x0[1] * x2[2] + x3[1] * x0[2] + x2[1] * x3[2]
+                             - x2[1] * x0[2] - x0[1] * x3[2] - x3[1] * x2[2])
+                    + x2[0]
+                          * (x0[1] * x1[2] + x3[1] * x0[2] + x1[1] * x3[2]
+                             - x1[1] * x0[2] - x0[1] * x3[2] - x3[1] * x1[2])
+                    - x3[0]
+                          * (x0[1] * x1[2] + x1[1] * x2[2] + x2[1] * x0[2]
+                             - x1[1] * x0[2] - x2[1] * x1[2] - x0[1] * x2[2]));
 
   return std::abs(v) / 6.0;
 }
@@ -179,10 +182,10 @@ double TetrahedronCell::circumradius(const MeshEntity& tetrahedron) const
 
   // Get the coordinates of the four vertices
   const std::int32_t* vertices = tetrahedron.entities(0);
-  const geometry::Point p0 = geometry.point(vertices[0]);
-  const geometry::Point p1 = geometry.point(vertices[1]);
-  const geometry::Point p2 = geometry.point(vertices[2]);
-  const geometry::Point p3 = geometry.point(vertices[3]);
+  const EigenPointVector p0 = geometry.point(vertices[0]);
+  const EigenPointVector p1 = geometry.point(vertices[1]);
+  const EigenPointVector p2 = geometry.point(vertices[2]);
+  const EigenPointVector p3 = geometry.point(vertices[3]);
 
   // Compute side lengths
   const double a = p1.distance(p2);
@@ -205,7 +208,7 @@ double TetrahedronCell::circumradius(const MeshEntity& tetrahedron) const
 }
 //-----------------------------------------------------------------------------
 double TetrahedronCell::squared_distance(const Cell& cell,
-                                         const geometry::Point& point) const
+                                         const EigenPointVector& point) const
 {
   // Algorithm from Real-time collision detection by Christer Ericson:
   // ClosestPtPointTetrahedron on page 143, Section 5.1.6.
@@ -216,10 +219,10 @@ double TetrahedronCell::squared_distance(const Cell& cell,
   // Get the vertices as points
   const MeshGeometry& geometry = cell.mesh().geometry();
   const std::int32_t* vertices = cell.entities(0);
-  const geometry::Point a = geometry.point(vertices[0]);
-  const geometry::Point b = geometry.point(vertices[1]);
-  const geometry::Point c = geometry.point(vertices[2]);
-  const geometry::Point d = geometry.point(vertices[3]);
+  const EigenPointVector a = geometry.point(vertices[0]);
+  const EigenPointVector b = geometry.point(vertices[1]);
+  const EigenPointVector c = geometry.point(vertices[2]);
+  const EigenPointVector d = geometry.point(vertices[3]);
 
   // Initialize squared distance
   double r2 = std::numeric_limits<double>::max();
@@ -253,8 +256,8 @@ double TetrahedronCell::normal(const Cell& cell, std::size_t facet,
   return normal(cell, facet)[i];
 }
 //-----------------------------------------------------------------------------
-geometry::Point TetrahedronCell::normal(const Cell& cell,
-                                        std::size_t facet) const
+EigenPointVector TetrahedronCell::normal(const Cell& cell,
+                                         std::size_t facet) const
 {
   // Make sure we have facets
   cell.mesh().init(3, 2);
@@ -274,18 +277,18 @@ geometry::Point TetrahedronCell::normal(const Cell& cell,
   const MeshGeometry& geometry = cell.mesh().geometry();
 
   // Get the coordinates of the four vertices
-  const geometry::Point P0 = geometry.point(v0);
-  const geometry::Point P1 = geometry.point(v1);
-  const geometry::Point P2 = geometry.point(v2);
-  const geometry::Point P3 = geometry.point(v3);
+  const EigenPointVector P0 = geometry.point(v0);
+  const EigenPointVector P1 = geometry.point(v1);
+  const EigenPointVector P2 = geometry.point(v2);
+  const EigenPointVector P3 = geometry.point(v3);
 
   // Create vectors
-  geometry::Point V0 = P0 - P1;
-  geometry::Point V1 = P2 - P1;
-  geometry::Point V2 = P3 - P1;
+  EigenPointVector V0 = P0 - P1;
+  EigenPointVector V1 = P2 - P1;
+  EigenPointVector V2 = P3 - P1;
 
   // Compute normal vector
-  geometry::Point n = V1.cross(V2);
+  EigenPointVector n = V1.cross(V2);
 
   // Normalize
   n /= n.norm();
@@ -297,12 +300,12 @@ geometry::Point TetrahedronCell::normal(const Cell& cell,
   return n;
 }
 //-----------------------------------------------------------------------------
-geometry::Point TetrahedronCell::cell_normal(const Cell& cell) const
+EigenPointVector TetrahedronCell::cell_normal(const Cell& cell) const
 {
   log::dolfin_error("TetrahedronCell.cpp", "compute cell normal",
                     "cell_normal not implemented for TetrahedronCell");
 
-  return geometry::Point();
+  return EigenPointVector();
 }
 //-----------------------------------------------------------------------------
 double TetrahedronCell::facet_area(const Cell& cell, std::size_t facet) const
@@ -318,9 +321,9 @@ double TetrahedronCell::facet_area(const Cell& cell, std::size_t facet) const
 
   // Get the coordinates of the three vertices
   const std::int32_t* vertices = f.entities(0);
-  const geometry::Point x0 = geometry.point(vertices[0]);
-  const geometry::Point x1 = geometry.point(vertices[1]);
-  const geometry::Point x2 = geometry.point(vertices[2]);
+  const EigenPointVector x0 = geometry.point(vertices[0]);
+  const EigenPointVector x1 = geometry.point(vertices[1]);
+  const EigenPointVector x2 = geometry.point(vertices[2]);
 
   // Compute area of triangle embedded in R^3
   double v0 = (x0[1] * x1[2] + x0[2] * x2[1] + x1[1] * x2[2])
@@ -542,16 +545,16 @@ std::size_t TetrahedronCell::find_edge(std::size_t i, const Cell& cell) const
   return 0;
 }
 //-----------------------------------------------------------------------------
-bool TetrahedronCell::point_outside_of_plane(const geometry::Point& point,
-                                             const geometry::Point& a,
-                                             const geometry::Point& b,
-                                             const geometry::Point& c,
-                                             const geometry::Point& d) const
+bool TetrahedronCell::point_outside_of_plane(const EigenPointVector& point,
+                                             const EigenPointVector& a,
+                                             const EigenPointVector& b,
+                                             const EigenPointVector& c,
+                                             const EigenPointVector& d) const
 {
   // Algorithm from Real-time collision detection by Christer Ericson:
   // PointOutsideOfPlane on page 144, Section 5.1.6.
 
-  const geometry::Point v = (b - a).cross(c - a);
+  const EigenPointVector v = (b - a).cross(c - a);
   const double signp = v.dot(point - a);
   const double signd = v.dot(d - a);
 

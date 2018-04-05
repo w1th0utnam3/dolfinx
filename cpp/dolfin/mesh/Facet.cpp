@@ -8,13 +8,12 @@
 #include "Cell.h"
 #include "IntervalCell.h"
 #include "TriangleCell.h"
-#include <dolfin/geometry/Point.h>
 
 using namespace dolfin;
 using namespace dolfin::mesh;
 
 //-----------------------------------------------------------------------------
-geometry::Point Facet::normal() const
+EigenPointVector Facet::normal() const
 {
   const std::size_t D = _mesh->topology().dim();
   _mesh->init(D - 1);
@@ -30,15 +29,15 @@ geometry::Point Facet::normal() const
   return cell.normal(local_facet);
 }
 //-----------------------------------------------------------------------------
-double Facet::squared_distance(const geometry::Point& point) const
+double Facet::squared_distance(const EigenPointVector& point) const
 {
   if (_dim == 1)
   {
     // Extract vertices
     const MeshGeometry& geometry = _mesh->geometry();
     const std::int32_t* vertices = entities(0);
-    const geometry::Point a = geometry.point(vertices[0]);
-    const geometry::Point b = geometry.point(vertices[1]);
+    const EigenPointVector a = geometry.point(vertices[0]);
+    const EigenPointVector b = geometry.point(vertices[1]);
 
     // Compute squared distance
     return IntervalCell::squared_distance(point, a, b);
@@ -48,16 +47,16 @@ double Facet::squared_distance(const geometry::Point& point) const
     // Extract vertices
     const MeshGeometry& geometry = _mesh->geometry();
     const std::int32_t* vertices = entities(0);
-    const geometry::Point a = geometry.point(vertices[0]);
-    const geometry::Point b = geometry.point(vertices[1]);
-    const geometry::Point c = geometry.point(vertices[2]);
+    const EigenPointVector a = geometry.point(vertices[0]);
+    const EigenPointVector b = geometry.point(vertices[1]);
+    const EigenPointVector c = geometry.point(vertices[2]);
 
     // Compute squared distance
     return TriangleCell::squared_distance(point, a, b, c);
   }
 
   log::dolfin_error("Facet.cpp", "compute (squared) distance to facet",
-               "Not implemented for facets of dimension %d", _dim);
+                    "Not implemented for facets of dimension %d", _dim);
 
   return 0.0;
 }

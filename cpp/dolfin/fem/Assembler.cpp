@@ -438,7 +438,7 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
 
   // Data structures used in assembly
   EigenRowArrayXXd coordinate_dofs;
-  EigenVectorXd be;
+  Eigen::VectorXd be;
 
   // Get cell integral
   auto cell_integral = L.integrals().cell_integral();
@@ -511,7 +511,7 @@ void Assembler::apply_bc(la::PETScVector& b, const Form& a,
   auto dofmap1 = a.function_space(1)->dofmap();
 
   EigenRowMatrixXd Ae;
-  EigenVectorXd be;
+  Eigen::VectorXd be;
   EigenRowArrayXXd coordinate_dofs;
 
   // Create data structures for local assembly data

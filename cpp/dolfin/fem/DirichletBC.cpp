@@ -18,7 +18,6 @@
 #include <dolfin/function/Constant.h>
 #include <dolfin/function/FunctionSpace.h>
 #include <dolfin/function/GenericFunction.h>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/log/log.h>
 #include <dolfin/mesh/Cell.h>
 #include <dolfin/mesh/Facet.h>
@@ -739,16 +738,17 @@ bool DirichletBC::on_facet(const Eigen::Ref<EigenArrayXd> coordinates,
   if (facet.dim() == 1)
   {
     // Create points
-    geometry::Point p(coordinates[0], coordinates[1]);
-    const geometry::Point v0
+    EigenPointVector p;
+    p << coordinates[0], coordinates[1];
+    const EigenPointVector v0
         = mesh::Vertex(facet.mesh(), facet.entities(0)[0]).point();
-    const geometry::Point v1
+    const EigenPointVector v1
         = mesh::Vertex(facet.mesh(), facet.entities(0)[1]).point();
 
     // Create vectors
-    const geometry::Point v01 = v1 - v0;
-    const geometry::Point vp0 = v0 - p;
-    const geometry::Point vp1 = v1 - p;
+    const EigenPointVector v01 = v1 - v0;
+    const EigenPointVector vp0 = v0 - p;
+    const EigenPointVector vp1 = v1 - p;
 
     // Check if the length of the sum of the two line segments vp0 and
     // vp1 is equal to the total length of the facet
@@ -762,20 +762,21 @@ bool DirichletBC::on_facet(const Eigen::Ref<EigenArrayXd> coordinates,
   else if (facet.dim() == 2)
   {
     // Create points
-    const geometry::Point p(coordinates[0], coordinates[1], coordinates[2]);
-    const geometry::Point v0
+    EigenPointVector p;
+    p << coordinates[0], coordinates[1], coordinates[2];
+    const EigenPointVector v0
         = mesh::Vertex(facet.mesh(), facet.entities(0)[0]).point();
-    const geometry::Point v1
+    const EigenPointVector v1
         = mesh::Vertex(facet.mesh(), facet.entities(0)[1]).point();
-    const geometry::Point v2
+    const EigenPointVector v2
         = mesh::Vertex(facet.mesh(), facet.entities(0)[2]).point();
 
     // Create vectors
-    const geometry::Point v01 = v1 - v0;
-    const geometry::Point v02 = v2 - v0;
-    const geometry::Point vp0 = v0 - p;
-    const geometry::Point vp1 = v1 - p;
-    const geometry::Point vp2 = v2 - p;
+    const EigenPointVector v01 = v1 - v0;
+    const EigenPointVector v02 = v2 - v0;
+    const EigenPointVector vp0 = v0 - p;
+    const EigenPointVector vp1 = v1 - p;
+    const EigenPointVector vp2 = v2 - p;
 
     // Check if the sum of the area of the sub triangles is equal to
     // the total area of the facet

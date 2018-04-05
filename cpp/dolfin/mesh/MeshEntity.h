@@ -7,7 +7,6 @@
 #pragma once
 
 #include "Mesh.h"
-#include <dolfin/geometry/Point.h>
 
 namespace dolfin
 {
@@ -181,7 +180,7 @@ public:
   ///
   /// @return geometry::Point
   ///         The midpoint of the cell.
-  geometry::Point midpoint() const;
+  Eigen::VectorXd midpoint() const;
 
   /// Determine whether an entity is a 'ghost' from another
   /// process

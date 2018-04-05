@@ -7,7 +7,6 @@
 #pragma once
 
 #include <dolfin/common/types.h>
-#include <dolfin/geometry/Point.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -66,7 +65,7 @@ public:
   }
 
   /// Return coordinate with local index n as a 3D point value
-  geometry::Point point(std::size_t n) const;
+  Eigen::VectorXd point(std::size_t n) const;
 
   // Should this return an Eigen::Ref?
   /// Return array of coordinates for all points

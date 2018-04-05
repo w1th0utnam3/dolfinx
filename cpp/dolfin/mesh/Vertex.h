@@ -10,7 +10,6 @@
 #include "MeshEntity.h"
 #include "MeshGeometry.h"
 #include <dolfin/common/types.h>
-#include <dolfin/geometry/Point.h>
 
 namespace dolfin
 {
@@ -38,7 +37,7 @@ public:
   ~Vertex() = default;
 
   /// Return vertex coordinates as a 3D point value
-  geometry::Point point() const
+  Eigen::VectorXd point() const
   {
     return _mesh->geometry().point(_local_index);
   }

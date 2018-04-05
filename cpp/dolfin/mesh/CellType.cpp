@@ -16,7 +16,6 @@
 #include "Vertex.h"
 #include <algorithm>
 #include <array>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/log/log.h>
 
 using namespace dolfin;
@@ -132,7 +131,7 @@ double CellType::h(const MeshEntity& entity) const
   // Get the coordinates (Points) of the vertices
   const std::int32_t* vertices = entity.entities(0);
   assert(vertices);
-  std::array<geometry::Point, 8> points;
+  std::array<EigenPointVector, 8> points;
   assert(num_vertices <= 8);
   for (int i = 0; i < num_vertices; ++i)
     points[i] = geometry.point(vertices[i]);

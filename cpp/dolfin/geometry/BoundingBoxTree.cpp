@@ -13,7 +13,6 @@
 #include "CollisionPredicates.h"
 #include <dolfin/common/MPI.h>
 #include <dolfin/common/constants.h>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/mesh/Cell.h>
 #include <dolfin/mesh/Mesh.h>
 #include <dolfin/mesh/MeshEntity.h>
@@ -739,10 +738,8 @@ void BoundingBoxTree::sort_bboxes(
     const std::vector<unsigned int>::iterator& end)
 {
   // Comparison lambda function with capture
-  auto cmp =
-      [& gdim = _gdim, &leaf_bboxes, &axis ](unsigned int i, unsigned int j)
-          ->bool
-  {
+  auto cmp = [& gdim = _gdim, &leaf_bboxes, &axis](unsigned int i,
+                                                   unsigned int j) -> bool {
     const double* bi = leaf_bboxes.data() + 2 * gdim * i + axis;
     const double* bj = leaf_bboxes.data() + 2 * gdim * j + axis;
     return (bi[0] + bi[gdim]) < (bj[0] + bj[gdim]);

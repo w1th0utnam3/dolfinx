@@ -19,9 +19,12 @@ MeshGeometry::MeshGeometry(const Eigen::Ref<const EigenRowArrayXXd>& points)
   // Do nothing
 }
 //-----------------------------------------------------------------------------
-geometry::Point MeshGeometry::point(std::size_t n) const
+EigenPointVector MeshGeometry::point(std::size_t n) const
 {
-  return geometry::Point(_coordinates.cols(), _coordinates.row(n).data());
+  EigenPointVector p;
+  p.setZero();
+  p << _coordinates.row(n);
+  return p;
 }
 //-----------------------------------------------------------------------------
 std::size_t MeshGeometry::hash() const

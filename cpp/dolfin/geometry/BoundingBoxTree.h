@@ -10,7 +10,6 @@
 #include <sstream>
 #include <vector>
 #include <limits>
-#include <dolfin/geometry/Point.h>
 
 namespace dolfin
 {
