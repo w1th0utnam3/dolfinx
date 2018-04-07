@@ -180,7 +180,7 @@ public:
   ///
   /// @return geometry::Point
   ///         The midpoint of the cell.
-  Eigen::VectorXd midpoint() const;
+  EigenPointVector midpoint() const;
 
   /// Determine whether an entity is a 'ghost' from another
   /// process

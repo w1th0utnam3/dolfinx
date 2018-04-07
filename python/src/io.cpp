@@ -6,7 +6,6 @@
 
 #include <dolfin/function/Function.h>
 #include <dolfin/function/FunctionSpace.h>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/io/HDF5File.h>
 #include <dolfin/io/VTKFile.h>
 #include <dolfin/io/XDMFFile.h>
@@ -309,20 +308,20 @@ void io(py::module& m)
            py::arg("encoding") = dolfin::io::XDMFFile::Encoding::HDF5)
       // Points
       .def("write",
-           [](dolfin::io::XDMFFile& instance, py::list points,
+           [](dolfin::io::XDMFFile& instance,
+              std::vector<dolfin::EigenPointVector>& points,
               dolfin::io::XDMFFile::Encoding encoding) {
-             auto _points = points.cast<std::vector<dolfin::geometry::Point>>();
-             instance.write(_points, encoding);
+             instance.write(points, encoding);
            },
            py::arg("points"),
            py::arg("encoding") = dolfin::io::XDMFFile::Encoding::HDF5)
       // Points with values
       .def("write",
-           [](dolfin::io::XDMFFile& instance, py::list points,
+           [](dolfin::io::XDMFFile& instance,
+              std::vector<dolfin::EigenPointVector>& points,
               std::vector<double>& values,
               dolfin::io::XDMFFile::Encoding encoding) {
-             auto _points = points.cast<std::vector<dolfin::geometry::Point>>();
-             instance.write(_points, values, encoding);
+             instance.write(points, values, encoding);
            },
            py::arg("points"), py::arg("values"),
            py::arg("encoding") = dolfin::io::XDMFFile::Encoding::HDF5)

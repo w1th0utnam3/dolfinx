@@ -88,7 +88,7 @@ std::size_t MeshEntity::index(const MeshEntity& entity) const
   return 0;
 }
 //-----------------------------------------------------------------------------
-Eigen::VectorXd MeshEntity::midpoint() const
+EigenPointVector MeshEntity::midpoint() const
 {
   // Special case: a vertex is its own midpoint (don't check neighbors)
   if (_dim == 0)
@@ -115,7 +115,7 @@ Eigen::VectorXd MeshEntity::midpoint() const
   y /= double(num_vertices);
   z /= double(num_vertices);
 
-  Eigen::VectorXd p;
+  EigenPointVector p;
   p << x, y, z;
   return p;
 }

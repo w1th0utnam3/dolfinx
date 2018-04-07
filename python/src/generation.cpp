@@ -9,7 +9,6 @@
 #include <dolfin/generation/IntervalMesh.h>
 #include <dolfin/generation/RectangleMesh.h>
 #include <dolfin/generation/UnitTriangleMesh.h>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/mesh/CellType.h>
 #include <iostream>
 #include <memory>
@@ -41,7 +40,7 @@ void generation(py::module& m)
       m, "RectangleMesh")
       .def_static("create",
                   [](const MPICommWrapper comm,
-                     std::array<dolfin::geometry::Point, 2> p,
+                     std::array<dolfin::EigenPointVector, 2> p,
                      std::array<std::size_t, 2> n,
                      dolfin::mesh::CellType::Type cell_type,
                      std::string diagonal) {
@@ -60,7 +59,7 @@ void generation(py::module& m)
              std::shared_ptr<dolfin::generation::BoxMesh>>(m, "BoxMesh")
       .def_static("create",
                   [](const MPICommWrapper comm,
-                     std::array<dolfin::geometry::Point, 2> p,
+                     std::array<dolfin::EigenPointVector, 2> p,
                      std::array<std::size_t, 3> n,
                      dolfin::mesh::CellType::Type cell_type) {
                     return dolfin::generation::BoxMesh::create(comm.get(), p, n,

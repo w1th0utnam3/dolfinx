@@ -23,7 +23,9 @@ EigenPointVector MeshGeometry::point(std::size_t n) const
 {
   EigenPointVector p;
   p.setZero();
-  p << _coordinates.row(n);
+  for (unsigned int i = 0; i < _coordinates.cols(); ++i)
+    p[i] = _coordinates(n, i);
+
   return p;
 }
 //-----------------------------------------------------------------------------

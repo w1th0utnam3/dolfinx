@@ -12,7 +12,6 @@
 #include <dolfin/function/FunctionAXPY.h>
 #include <dolfin/function/FunctionSpace.h>
 #include <dolfin/function/SpecialFunctions.h>
-#include <dolfin/geometry/Point.h>
 #include <dolfin/la/PETScVector.h>
 #include <dolfin/mesh/Mesh.h>
 #include <memory>
@@ -114,8 +113,9 @@ void function(py::module& m)
   py::class_<dolfin::function::Expression, PyExpression,
              std::shared_ptr<dolfin::function::Expression>,
              dolfin::function::GenericFunction>(
-      m, "Expression", "An Expression is a function (field) that can appear as "
-                       "a coefficient in a form")
+      m, "Expression",
+      "An Expression is a function (field) that can appear as "
+      "a coefficient in a form")
       .def(py::init<std::vector<std::size_t>>())
       .def("__call__",
            [](const dolfin::function::Expression& self,
@@ -131,15 +131,15 @@ void function(py::module& m)
               py::object value) {
              if (py::isinstance<dolfin::function::GenericFunction>(value))
              {
-               auto _v = value.cast<std::shared_ptr<dolfin::function::
-                                                        GenericFunction>>();
+               auto _v = value.cast<
+                   std::shared_ptr<dolfin::function::GenericFunction>>();
                self.set_generic_function(name, _v);
              }
              else if (py::hasattr(value, "_cpp_object"))
              {
                auto _v = value.attr("_cpp_object")
-                             .cast<std::shared_ptr<dolfin::function::
-                                                       GenericFunction>>();
+                             .cast<std::shared_ptr<
+                                 dolfin::function::GenericFunction>>();
                self.set_generic_function(name, _v);
              }
              else
@@ -216,10 +216,9 @@ void function(py::module& m)
       //(dolfin::function::Function::*)(const
       // dolfin::function::Function&))
       //     &dolfin::function::Function::operator=)
-      .def("_assign",
-           (void (dolfin::function::Function::*)(
-               const dolfin::function::FunctionAXPY&))
-               & dolfin::function::Function::operator=)
+      .def("_assign", (void (dolfin::function::Function::*)(
+                          const dolfin::function::FunctionAXPY&))
+                          & dolfin::function::Function::operator=)
       .def("__call__",
            [](dolfin::function::Function& self,
               Eigen::Ref<const dolfin::EigenRowArrayXXd> x) {
@@ -268,16 +267,12 @@ void function(py::module& m)
       .def(py::init<std::shared_ptr<const dolfin::function::Function>,
                     std::shared_ptr<const dolfin::function::Function>,
                     dolfin::function::FunctionAXPY::Direction>())
-      .def(
-          py::init<std::
-                       vector<std::pair<double,
-                                        std::shared_ptr<const dolfin::function::
-                                                            Function>>>>())
+      .def(py::init<std::vector<std::pair<
+               double, std::shared_ptr<const dolfin::function::Function>>>>())
       .def(py::init([](std::vector<std::pair<double, py::object>> fun) {
-        std::
-            vector<std::pair<double,
-                             std::shared_ptr<const dolfin::function::Function>>>
-                a;
+        std::vector<std::pair<
+            double, std::shared_ptr<const dolfin::function::Function>>>
+            a;
         for (auto p : fun)
           a.push_back(
               {p.first,
@@ -293,22 +288,26 @@ void function(py::module& m)
       }))
       .def(py::self + py::self)
       .def(py::self + std::shared_ptr<const dolfin::function::Function>())
-      .def("__add__",
-           [](dolfin::function::FunctionAXPY& self, py::object f1) {
-             return (self
-                     + f1.attr("_cpp_object")
-                           .cast<std::shared_ptr<const dolfin::function::
-                                                     Function>>());
-           })
+      .def(
+          "__add__",
+          [](dolfin::function::FunctionAXPY& self, py::object f1) {
+            return (
+                self
+                + f1.attr("_cpp_object")
+                      .cast<
+                          std::shared_ptr<const dolfin::function::Function>>());
+          })
       .def(py::self - py::self)
       .def(py::self - std::shared_ptr<const dolfin::function::Function>())
-      .def("__sub__",
-           [](dolfin::function::FunctionAXPY& self, py::object f1) {
-             return (self
-                     - f1.attr("_cpp_object")
-                           .cast<std::shared_ptr<const dolfin::function::
-                                                     Function>>());
-           })
+      .def(
+          "__sub__",
+          [](dolfin::function::FunctionAXPY& self, py::object f1) {
+            return (
+                self
+                - f1.attr("_cpp_object")
+                      .cast<
+                          std::shared_ptr<const dolfin::function::Function>>());
+          })
       .def(py::self * float())
       .def(py::self / float());
 
