@@ -11,11 +11,6 @@
 #include <string>
 #include <vector>
 
-namespace ufc
-{
-class coordinate_mapping;
-}
-
 namespace dolfin
 {
 namespace fem

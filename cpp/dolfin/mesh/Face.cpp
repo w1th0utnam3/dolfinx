@@ -15,7 +15,6 @@ using namespace dolfin::mesh;
 double Face::area() const
 {
   assert(_mesh);
-  assert(_mesh->ordered());
 
   const std::size_t D = _mesh->topology().dim();
 
@@ -47,7 +46,6 @@ double Face::area() const
 EigenPointVector Face::normal() const
 {
   assert(_mesh);
-  assert(_mesh->ordered());
 
   const std::size_t tD = _mesh->topology().dim();
   const std::size_t gD = _mesh->geometry().dim();

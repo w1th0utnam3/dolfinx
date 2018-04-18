@@ -18,7 +18,6 @@ EigenPointVector Facet::normal() const
   const std::size_t D = _mesh->topology().dim();
   _mesh->init(D - 1);
   _mesh->init(D - 1, D);
-  assert(_mesh->ordered());
 
   // Get cell to which face belong (first cell when there is more than one)
   const Cell cell(*_mesh, this->entities(D)[0]);
