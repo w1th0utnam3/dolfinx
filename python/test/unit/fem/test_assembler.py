@@ -14,7 +14,7 @@ import ufl
 from ufl import dx
 
 
-def xtest_initialisation():
+def test_initialisation():
     "Test intialisation of the assembler"
     mesh = dolfin.generation.UnitCubeMesh(dolfin.MPI.comm_world, 4, 4, 4)
     V = dolfin.function.functionspace.FunctionSpace(mesh, "Lagrange", 1)
@@ -31,7 +31,7 @@ def xtest_initialisation():
     # arguments
 
 
-def xtest_matrix_assembly():
+def test_matrix_assembly():
     "Test basic assembly without Dirichlet boundary conditions"
     mesh = dolfin.generation.UnitSquareMesh(dolfin.MPI.comm_world, 8, 8)
     V = dolfin.function.functionspace.FunctionSpace(mesh, "Lagrange", 1)
@@ -61,7 +61,7 @@ def xtest_matrix_assembly():
     # print(c.vec().getArray())
 
 
-def xtest_matrix_assembly_bc():
+def test_matrix_assembly_bc():
     mesh = dolfin.generation.UnitSquareMesh(dolfin.MPI.comm_world, 2, 1)
     V = dolfin.function.functionspace.FunctionSpace(mesh, "Lagrange", 1)
     v = dolfin.function.argument.TestFunction(V)
@@ -92,8 +92,8 @@ def xtest_matrix_assembly_bc():
     # B.mat().view()
 
 
-def test_matrix_assembly_block():
-    mesh = dolfin.generation.UnitSquareMesh(dolfin.MPI.comm_world, 2, 1)
+def xtest_matrix_assembly_block():
+    mesh = dolfin.generation.UnitSquareMesh(dolfin.MPI.comm_world, 32, 32)
 
     V0 = dolfin.function.functionspace.FunctionSpace(mesh, "Lagrange", 1)
     V1 = dolfin.function.functionspace.FunctionSpace(mesh, "Lagrange", 1)

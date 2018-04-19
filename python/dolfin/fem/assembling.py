@@ -108,6 +108,14 @@ def assemble_local(form, cell, form_compiler_parameters=None):
     return result
 
 
+def assemble_scalar(M_form,
+                    form_compiler_parameters=None):
+    dolfin_form = _create_dolfin_form(M_form, form_compiler_parameters)
+
+    value = cpp.fem.Assembler.assemble(M_form)
+    return value
+
+
 def assemble_system(A_form,
                     b_form,
                     bcs=None,

@@ -270,7 +270,9 @@ void fem(py::module& m)
                            &dolfin::fem::Assembler::assemble))
       .def("assemble", py::overload_cast<dolfin::la::PETScVector&,
                                          dolfin::fem::Assembler::BlockType>(
-                           &dolfin::fem::Assembler::assemble));
+                           &dolfin::fem::Assembler::assemble))
+      .def("assemble", py::overload_cast<const dolfin::fem::Form&>(
+                &dolfin::fem::Assembler::assemble));
 
   // dolfin::fem::AssemblerBase
   py::class_<dolfin::fem::AssemblerBase,

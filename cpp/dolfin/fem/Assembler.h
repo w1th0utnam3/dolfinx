@@ -52,6 +52,9 @@ public:
   /// Assemble matrix and vector
   void assemble(la::PETScMatrix& A, la::PETScVector& b);
 
+  /// Assemble scalar functional
+  static double assemble(const Form& M);
+
 private:
   // Assemble matrix. Dirichlet rows/columns are zeroed, with '1' placed on
   // diagonal

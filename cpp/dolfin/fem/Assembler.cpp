@@ -14,6 +14,7 @@
 #include <dolfin/common/types.h>
 #include <dolfin/function/FunctionSpace.h>
 #include <dolfin/la/PETScMatrix.h>
+#include <dolfin/la/Scalar.h>
 #include <dolfin/la/SparsityPattern.h>
 #include <dolfin/mesh/Cell.h>
 #include <dolfin/mesh/Mesh.h>
@@ -589,6 +590,68 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
   // FIXME: Put this elsewhere?
   // Finalise matrix
   b.apply();
+}
+//-----------------------------------------------------------------------------
+double Assembler::assemble(const Form& M)
+{
+  // Get mesh from form
+  assert(M.mesh());
+  const mesh::Mesh& mesh = *M.mesh();
+
+  // FIXME: Remove UFC
+  // Create data structures for local assembly data
+  UFC ufc(M);
+
+  const std::size_t gdim = mesh.geometry().dim();
+  const std::size_t tdim = mesh.topology().dim();
+  mesh.init(tdim);
+
+  // Collect pointers to dof maps
+  auto dofmap = M.function_space(0)->dofmap();
+
+  // Data structures used in assembly
+  EigenRowArrayXXd coordinate_dofs;
+  EigenVectorXd me;
+  me.resize(1);
+
+  la::Scalar m(mesh.mpi_comm());
+
+  // Get cell integral
+  auto cell_integral = M.integrals().cell_integral();
+
+  // Iterate over all cells
+  for (auto& cell : mesh::MeshRange<mesh::Cell>(mesh))
+  {
+    // Check that cell is not a ghost
+    assert(!cell.is_ghost());
+
+    // Get cell vertex coordinates
+    coordinate_dofs.resize(cell.num_vertices(), gdim);
+    cell.get_coordinate_dofs(coordinate_dofs);
+
+    // Update UFC data to current cell
+    ufc.update(cell, coordinate_dofs, cell_integral->enabled_coefficients);
+
+    // Get dof maps for cell
+//    auto dmap = dofmap->cell_dofs(cell.index());
+    // auto dmap1 = dofmaps[1]->cell_dofs(cell.index());
+
+    // Size data structure for assembly
+    me.setZero();
+
+    // Compute cell matrix
+    cell_integral->tabulate_tensor(me.data(), ufc.w(), coordinate_dofs.data(),
+                                   1);
+
+    // Add to scalar
+    m.add(me.data()[0]);
+  }
+
+  // FIXME: Put this elsewhere?
+  // Finalise matrix
+  m.apply();
+
+  return m.value();
 }
 //-----------------------------------------------------------------------------
 void Assembler::apply_bc(la::PETScVector& b, const Form& a,
