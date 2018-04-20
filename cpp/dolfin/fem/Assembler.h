@@ -20,6 +20,11 @@ class PETScMatrix;
 class PETScVector;
 }
 
+namespace mesh
+{
+class Mesh;
+}
+
 namespace fem
 {
 // Forward declarations
@@ -53,7 +58,7 @@ public:
   void assemble(la::PETScMatrix& A, la::PETScVector& b);
 
   /// Assemble scalar functional
-  static double assemble(const Form& M);
+  static double assemble(const Form& M, const mesh::Mesh& mesh);
 
 private:
   // Assemble matrix. Dirichlet rows/columns are zeroed, with '1' placed on

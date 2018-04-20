@@ -592,11 +592,17 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
   b.apply();
 }
 //-----------------------------------------------------------------------------
-double Assembler::assemble(const Form& M)
+double Assembler::assemble(const Form& M, const mesh::Mesh& mesh)
 {
   // Get mesh from form
-  assert(M.mesh());
-  const mesh::Mesh& mesh = *M.mesh();
+//  assert(M.mesh());
+//  const mesh::Mesh& mesh = *M.mesh();
+
+  if (M.rank() != 0)
+  {
+    throw std::runtime_error("Expected form of rank 0 for scalar assembly, "
+                             "form has rank " + std::to_string(M.rank()));
+  }
 
   // FIXME: Remove UFC
   // Create data structures for local assembly data
@@ -605,9 +611,6 @@ double Assembler::assemble(const Form& M)
   const std::size_t gdim = mesh.geometry().dim();
   const std::size_t tdim = mesh.topology().dim();
   mesh.init(tdim);
-
-  // Collect pointers to dof maps
-  auto dofmap = M.function_space(0)->dofmap();
 
   // Data structures used in assembly
   EigenRowArrayXXd coordinate_dofs;
