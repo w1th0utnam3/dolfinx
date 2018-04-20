@@ -134,6 +134,13 @@ void SubDomain::mark(S& sub_domains, T sub_domain, const Mesh& mesh,
     mesh.init(D - 1, D);
   }
 
+  // #TODO: for some reason when D = 1, (D-1, 0) connectivity is not
+  // computed. This is because in mesh.init(dim), the vertices already exist
+  // and the (0, 0) connectivity is not built. This does not happen in
+  // regular dolfin. The following line forces (0, 0) connectivity.
+  if (D == 1)
+    mesh.init(D-1, 0);
+
   // Find all vertices on boundary
   // Set all to -1 (interior) to start with
   // If a vertex is on the boundary, give it an index from [0, count)
