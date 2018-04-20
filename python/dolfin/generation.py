@@ -22,7 +22,25 @@ def UnitIntervalMesh(comm, nx):
 
 
 def UnitSquareMesh(comm, nx, ny, cell_type=CellType.Type.triangle):
-    """Create a mesh of a unit square"""
+    """Create a mesh of a unit square.
+    
+    Parameters
+    ----------
+    comm
+        MPI Communicator
+    nx
+        Number of cells in the x direction
+    ny
+        Number of cells in the y direction
+    cell_type
+        Type of cell (CellType.Type.triangle or CellType.Type.quadrilateral)
+    
+    Returns
+    -------
+    Mesh
+        Mesh of a unit square.
+
+    """
     from dolfin.cpp.geometry import Point
     mesh = RectangleMesh.create(comm, [Point(0.0, 0.0), Point(1.0, 1.0)],
                                 [nx, ny], cell_type)

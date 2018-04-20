@@ -238,11 +238,6 @@ def mplot_meshfunction(ax, obj, **kwargs):
         return
 
 
-def mplot_dirichletbc(ax, obj, **kwargs):
-    raise AttributeError(
-        "Matplotlib plotting backend doesn't handle DirichletBC.")
-
-
 def _plot_matplotlib(obj, mesh, kwargs):
     if not isinstance(obj, _matplotlib_plottable_types):
         print("Don't know how to plot type %s." % type(obj))
@@ -295,8 +290,6 @@ def _plot_matplotlib(obj, mesh, kwargs):
         return mplot_expression(ax, obj, mesh, **kwargs)
     elif isinstance(obj, cpp.mesh.Mesh):
         return mplot_mesh(ax, obj, **kwargs)
-    elif isinstance(obj, cpp.fem.DirichletBC):
-        return mplot_dirichletbc(ax, obj, **kwargs)
     elif isinstance(obj, _meshfunction_types):
         return mplot_meshfunction(ax, obj, **kwargs)
     else:
