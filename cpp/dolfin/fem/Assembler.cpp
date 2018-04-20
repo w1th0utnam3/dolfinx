@@ -635,10 +635,6 @@ double Assembler::assemble(const Form& M, const mesh::Mesh& mesh)
     // Update UFC data to current cell
     ufc.update(cell, coordinate_dofs, cell_integral->enabled_coefficients);
 
-    // Get dof maps for cell
-//    auto dmap = dofmap->cell_dofs(cell.index());
-    // auto dmap1 = dofmaps[1]->cell_dofs(cell.index());
-
     // Size data structure for assembly
     me.setZero();
 
