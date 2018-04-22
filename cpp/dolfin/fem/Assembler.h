@@ -11,6 +11,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <dolfin/la/Scalar.h>
 
 namespace dolfin
 {
@@ -58,7 +59,7 @@ public:
   void assemble(la::PETScMatrix& A, la::PETScVector& b);
 
   /// Assemble scalar functional
-  static double assemble(const Form& M, const mesh::Mesh& mesh);
+  static void assemble(la::Scalar& m, const Form& M);
 
 private:
   // Assemble matrix. Dirichlet rows/columns are zeroed, with '1' placed on

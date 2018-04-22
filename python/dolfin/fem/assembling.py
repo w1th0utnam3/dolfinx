@@ -110,18 +110,11 @@ def assemble_local(form, cell, form_compiler_parameters=None):
 
 def assemble_scalar(M_form,
                     form_compiler_parameters=None):
-    # Find the dolfin mesh
-    ufl_domains = M_form.ufl_domains()
-    if len(ufl_domains) == 0:
-        raise RuntimeError("Expected ufl domain in M_form")
-    ufl_domain = M_form.ufl_domain()
-    assert ufl_domain is not None
-    mesh = ufl_domain.ufl_cargo()
-
     # Create dolfin form and assemble
     dolfin_form = _create_dolfin_form(M_form, form_compiler_parameters)
-    value = cpp.fem.Assembler.assemble(dolfin_form, mesh)
-    return value
+    scalar = cpp.la.Scalar(dolfin_form.mesh().mpi_comm())
+    cpp.fem.Assembler.assemble(scalar, dolfin_form)
+    return scalar.value()
 
 
 def assemble_system(A_form,

@@ -592,11 +592,11 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
   b.apply();
 }
 //-----------------------------------------------------------------------------
-double Assembler::assemble(const Form& M, const mesh::Mesh& mesh)
+void Assembler::assemble(la::Scalar& m, const Form& M)
 {
   // Get mesh from form
-//  assert(M.mesh());
-//  const mesh::Mesh& mesh = *M.mesh();
+  assert(M.mesh());
+  const mesh::Mesh& mesh = *M.mesh();
 
   if (M.rank() != 0)
   {
@@ -616,8 +616,6 @@ double Assembler::assemble(const Form& M, const mesh::Mesh& mesh)
   EigenRowArrayXXd coordinate_dofs;
   EigenVectorXd me;
   me.resize(1);
-
-  la::Scalar m(mesh.mpi_comm());
 
   // Get cell integral
   auto cell_integral = M.integrals().cell_integral();
@@ -649,8 +647,6 @@ double Assembler::assemble(const Form& M, const mesh::Mesh& mesh)
   // FIXME: Put this elsewhere?
   // Finalise matrix
   m.apply();
-
-  return m.value();
 }
 //-----------------------------------------------------------------------------
 void Assembler::apply_bc(la::PETScVector& b, const Form& a,
