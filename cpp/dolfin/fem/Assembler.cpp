@@ -18,6 +18,7 @@
 #include <dolfin/la/SparsityPattern.h>
 #include <dolfin/mesh/Cell.h>
 #include <dolfin/mesh/Mesh.h>
+#include <dolfin/mesh/MeshFunction.h>
 #include <dolfin/mesh/MeshIterator.h>
 #include <string>
 
@@ -620,9 +621,21 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
   // Get cell integral
   auto cell_integral = M.integrals().cell_integral();
 
+  // Check whether integral is domain-dependent
+  auto domains = M.cell_domains();
+  bool use_domains = domains && !domains->size() == 0;
+
   // Iterate over all cells
   for (auto& cell : mesh::MeshRange<mesh::Cell>(mesh))
   {
+    // Get integral for sub domain (if any)
+    if (use_domains)
+      cell_integral = M.integrals().cell_integral((*domains)[cell]);
+
+    // Skip if no integral on current domain
+    if (!cell_integral)
+      continue;
+
     // Check that cell is not a ghost
     assert(!cell.is_ghost());
 
