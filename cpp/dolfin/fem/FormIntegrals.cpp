@@ -126,8 +126,8 @@ std::shared_ptr<const ufc_cell_integral> FormIntegrals::cell_integral() const
 std::shared_ptr<const ufc_cell_integral>
 FormIntegrals::cell_integral(unsigned int i) const
 {
-  if ((i + 1) >= _cell_integrals.size())
-    return std::shared_ptr<const ufc_cell_integral>();
+  if ((i + 1) >= _cell_integrals.size() or !_cell_integrals[i + 1])
+    return cell_integral();  // Not on a subdomain, so return the default
   else
     return _cell_integrals[i + 1];
 }

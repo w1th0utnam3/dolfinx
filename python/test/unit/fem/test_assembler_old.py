@@ -23,45 +23,59 @@ def test_cell_size_assembly_1D():
     assert round(dolfin.fem.assembling.assemble_scalar(dolfin.CellVolume(mesh)*dx) - 0.1, 12) == 0
 
 
-# def test_cell_assembly_1D():
-#     mesh = UnitIntervalMesh(MPI.comm_world, 48)
-#     V = FunctionSpace(mesh, "CG", 1)
-#
-#     v = TestFunction(V)
-#     u = TrialFunction(V)
-#     f = Constant(10.0)
-#
-#     a = inner(grad(v), grad(u))*dx
-#     L = inner(v, f)*dx
-#
-#     A_frobenius_norm = 811.75365721381274397572
-#     b_l2_norm = 1.43583841167606474087
-#
-#     # Assemble A and b
-#     assert round(assemble(a).norm("frobenius") - A_frobenius_norm, 10) == 0
-#     assert round(assemble(L).norm("l2") - b_l2_norm, 10) == 0
+def test_cell_assembly_1D():
+    mesh = dolfin.generation.UnitIntervalMesh(dolfin.MPI.comm_world, 48)
+    V = dolfin.FunctionSpace(mesh, "CG", 1)
+
+    v = dolfin.TestFunction(V)
+    u = dolfin.TrialFunction(V)
+    f = dolfin.Constant(10.0)
+
+    a = ufl.inner(ufl.grad(v), ufl.grad(u))*dx
+    L = ufl.inner(v, f)*dx
+
+    A_frobenius_norm = 811.75365721381274397572
+    b_l2_norm = 1.43583841167606474087
+
+    # Assemble A and b
+    assembler = dolfin.fem.assembling.Assembler(a, L, [])
+    A = dolfin.cpp.la.PETScMatrix(dolfin.MPI.comm_world)
+    b = dolfin.cpp.la.PETScVector(dolfin.MPI.comm_world)
+
+    assembler.assemble(A)
+    assembler.assemble(b)
+
+    assert round(A.norm("frobenius") - A_frobenius_norm, 10) == 0
+    assert round(b.norm("l2") - b_l2_norm, 10) == 0
 
 
-# def test_cell_assembly():
-#     mesh = UnitCubeMesh(MPI.comm_world, 4, 4, 4)
-#     V = VectorFunctionSpace(mesh, "DG", 1)
-#
-#     v = TestFunction(V)
-#     u = TrialFunction(V)
-#     f = Constant((10, 20, 30))
-#
-#     def epsilon(v):
-#         return 0.5*(grad(v) + grad(v).T)
-#
-#     a = inner(epsilon(v), epsilon(u))*dx
-#     L = inner(v, f)*dx
-#
-#     A_frobenius_norm = 4.3969686527582512
-#     b_l2_norm = 0.95470326978246278
-#
-#     # Assemble A and b
-#     assert round(assemble(a).norm("frobenius") - A_frobenius_norm, 10) == 0
-#     assert round(assemble(L).norm("l2") - b_l2_norm, 10) == 0
+def test_cell_assembly():
+    mesh = dolfin.generation.UnitCubeMesh(dolfin.MPI.comm_world, 4, 4, 4)
+    V = dolfin.VectorFunctionSpace(mesh, "DG", 1)
+
+    v = dolfin.TestFunction(V)
+    u = dolfin.TrialFunction(V)
+    f = dolfin.Constant((10, 20, 30))
+
+    def epsilon(v):
+        return 0.5*(grad(v) + grad(v).T)
+
+    a = ufl.inner(epsilon(v), epsilon(u))*dx
+    L = ufl.inner(v, f)*dx
+
+    A_frobenius_norm = 4.3969686527582512
+    b_l2_norm = 0.95470326978246278
+
+    # Assemble A and b
+    assembler = dolfin.fem.assembling.Assembler(a, L, [])
+    A = dolfin.cpp.la.PETScMatrix(dolfin.MPI.comm_world)
+    b = dolfin.cpp.la.PETScVector(dolfin.MPI.comm_world)
+
+    assembler.assemble(A)
+    assembler.assemble(b)
+
+    assert round(A.norm("frobenius") - A_frobenius_norm, 10) == 0
+    assert round(b.norm("l2") - b_l2_norm, 10) == 0
 
 
 # def test_facet_assembly(pushpop_parameters):
@@ -103,15 +117,16 @@ def test_cell_size_assembly_1D():
 # def test_ghost_mode_handling(pushpop_parameters):
 #     def _form():
 #         # Return form with trivial interior facet integral
-#         mesh = UnitSquareMesh(MPI.comm_world, 10, 10)
-#         ff = MeshFunction('size_t', mesh, mesh.topology.dim-1, 0)
-#         AutoSubDomain(lambda x: near(x[0], 0.5)).mark(ff, 1)
-#         return Constant(1.0)*dS(domain=mesh, subdomain_data=ff, subdomain_id=1)
+#         mesh = dolfin.generation.UnitSquareMesh(dolfin.MPI.comm_world, 10, 10)
+#         ff = dolfin.MeshFunction('size_t', mesh, mesh.topology.dim-1, 0)
+#         dolfin.AutoSubDomain(lambda x: numpy.isclose(x[0], 0.5)).mark(ff, 1)
+#         return dolfin.Constant(1.0)*dS(domain=mesh, subdomain_data=ff, subdomain_id=1)
 #
 #     # Not-ghosted mesh won't work in parallel and assembler should raise
-#     parameters["ghost_mode"] = "none"
-#     if MPI.size(MPI.comm_world) == 1:
-#         assert numpy.isclose(assemble(_form()), 1.0)
+#     if dolfin.MPI.size(dolfin.MPI.comm_world) == 1:
+#         form = _form()
+#         m = dolfin.fem.assembling.assemble_scalar(form)
+#         assert numpy.isclose(m, 1.0)
 #     else:
 #         form = _form()
 #         with pytest.raises(RuntimeError) as excinfo:
@@ -141,68 +156,72 @@ def test_functional_assembly(mesh_factory, facet_area):
     # assert round(dolfin.fem.assembling.assemble_scalar(M1) - facet_area, 7) == 0
 
 
-# @pytest.mark.parametrize('mesh_factory', [(UnitCubeMesh, (MPI.comm_world, 4, 4, 4)), (UnitCubeMesh, (MPI.comm_world, 4, 4, 4, CellType.Type.hexahedron))])
-# def xtest_subdomain_and_fulldomain_assembly_meshdomains(mesh_factory):
-#     """Test assembly over subdomains AND the full domain with markers
-#     stored as part of the mesh.
-#     """
-#
-#     # Create a mesh of the unit cube
-#     func, args = mesh_factory
-#     mesh = func(*args)
-#
-#     # Define subdomains for 3 faces of the unit cube
-#     class F0(SubDomain):
-#         def inside(self, x, inside):
-#             return near(x[0], 0.0)
-#
-#     class F1(SubDomain):
-#         def inside(self, x, inside):
-#             return near(x[1], 0.0)
-#
-#     class F2(SubDomain):
-#         def inside(self, x, inside):
-#             return near(x[2], 0.0)
-#
-#     # Define subdomains for 3 parts of the unit cube
-#     class S0(SubDomain):
-#         def inside(self, x, inside):
-#             return x[0] > 0.25
-#
-#     class S1(SubDomain):
-#         def inside(self, x, inside):
-#             return x[0] > 0.5
-#
-#     class S2(SubDomain):
-#         def inside(self, x, inside):
-#             return x[0] > 0.75
-#
-#     # Mark mesh
-#     f0 = F0()
-#     f1 = F1()
-#     f2 = F2()
-#     f0.mark_facets(mesh, 0)
-#     f1.mark_facets(mesh, 1)
-#     f2.mark_facets(mesh, 3)  # NB! 3, to leave a gap
-#
-#     s0 = S0()
-#     s1 = S1()
-#     s2 = S2()
-#     s0.mark_cells(mesh, 0)
-#     s1.mark_cells(mesh, 1)
-#     s2.mark_cells(mesh, 3)  # NB! 3, to leave a gap
-#
-#     # Assemble forms on subdomains and full domain and compare
-#     krange = list(range(5))
-#     for dmu in (dx, ds):
-#         full = assemble(Constant(3.0)*dmu(mesh))
-#         subplusfull = [assemble(Constant(3.0)*dmu(mesh) +
-#                                 Constant(1.0)*dmu(k, domain=mesh))
-#                        for k in krange]
-#         sub = [assemble(Constant(1.0)*dmu(k, domain=mesh)) for k in krange]
-#         for k in krange:
-#             # print sub[k] + full, subplusfull[k]
-#             assert round(sub[k] + full - subplusfull[k], 7) == 0
+@pytest.mark.parametrize('mesh_factory', [(dolfin.generation.UnitCubeMesh, (dolfin.MPI.comm_world, 4, 4, 4)),
+                                          (dolfin.generation.UnitCubeMesh, (dolfin.MPI.comm_world, 4, 4, 4, dolfin.CellType.Type.hexahedron))])
+def test_subdomain_and_fulldomain_assembly_meshdomains(mesh_factory):
+    """Test assembly over subdomains AND the full domain with markers
+    stored as part of the mesh.
+    """
+
+    # Create a mesh of the unit cube
+    func, args = mesh_factory
+    mesh = func(*args)
+
+    # Define subdomains for 3 faces of the unit cube
+    class F0(dolfin.SubDomain):
+        def inside(self, x, inside):
+            return numpy.isclose(x[:,0], 0.0)
+
+    class F1(dolfin.SubDomain):
+        def inside(self, x, inside):
+            return numpy.isclose(x[:,1], 0.0)
+
+    class F2(dolfin.SubDomain):
+        def inside(self, x, inside):
+            return numpy.isclose(x[:,2], 0.0)
+
+    # Define subdomains for 3 parts of the unit cube
+    class S0(dolfin.SubDomain):
+        def inside(self, x, inside):
+            return x[:,0] > 0.25 - dolfin.DOLFIN_EPS
+
+    class S1(dolfin.SubDomain):
+        def inside(self, x, inside):
+            return x[:,0] > 0.5 - dolfin.DOLFIN_EPS
+
+    class S2(dolfin.SubDomain):
+        def inside(self, x, inside):
+            return x[:,0] > 0.75 - dolfin.DOLFIN_EPS
+
+    # Mark mesh facets
+    ff = dolfin.MeshFunction("size_t", mesh, mesh.topology.dim - 1, 100)
+    f0 = F0()
+    f1 = F1()
+    f2 = F2()
+    f0.mark(ff, 0)
+    f1.mark(ff, 1)
+    f2.mark(ff, 3)  # NB! 3, to leave a gap
+
+    cf = dolfin.MeshFunction("size_t", mesh, mesh.topology.dim, 100)
+    s0 = S0()
+    s1 = S1()
+    s2 = S2()
+    s0.mark(cf, 0)
+    s1.mark(cf, 1)
+    s2.mark(cf, 3)  # NB! 3, to leave a gap
+
+    # Assemble forms on subdomains and full domain and compare
+    krange = list(range(5))
+    dx, ds = dolfin.Measure("dx", subdomain_data=cf), dolfin.Measure("ds", subdomain_data=ff)
+    for dmu in (dx, ds):
+        full = dolfin.fem.assembling.assemble_scalar(dolfin.Constant(3.0)*dmu(mesh))
+        sub_plus_form = [dolfin.Constant(3.0)*dmu(mesh) + dolfin.Constant(1.0)*dmu(k, domain=mesh) for k in krange]
+        subplusfull = list(map(dolfin.fem.assembling.assemble_scalar, sub_plus_form))
+
+        sub_form = [dolfin.Constant(1.0)*dmu(k, domain=mesh) for k in krange]
+        sub = list(map(dolfin.fem.assembling.assemble_scalar, sub_form))
+        for k in krange:
+            assert round(sub[k] + full - subplusfull[k], 7) == 0
 #
 #
 # @skip_in_parallel
