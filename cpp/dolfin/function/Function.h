@@ -24,7 +24,7 @@ namespace mesh
 {
 class Cell;
 class Mesh;
-}
+} // namespace mesh
 
 namespace function
 {
@@ -194,9 +194,6 @@ public:
   EigenRowArrayXXd compute_point_values() const;
 
 private:
-  // Friends
-  friend class FunctionAssigner;
-
   // Initialize vector
   void init_vector();
 
@@ -206,5 +203,5 @@ private:
   // The vector of expansion coefficients (local)
   std::shared_ptr<la::PETScVector> _vector;
 };
-}
-}
+} // namespace function
+} // namespace dolfin
