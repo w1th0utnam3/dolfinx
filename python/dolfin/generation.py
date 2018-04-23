@@ -23,7 +23,7 @@ def UnitIntervalMesh(comm, nx):
 
 def UnitSquareMesh(comm, nx, ny, cell_type=CellType.Type.triangle):
     """Create a mesh of a unit square.
-    
+
     Parameters
     ----------
     comm
@@ -34,7 +34,7 @@ def UnitSquareMesh(comm, nx, ny, cell_type=CellType.Type.triangle):
         Number of cells in the y direction
     cell_type
         Type of cell (CellType.Type.triangle or CellType.Type.quadrilateral)
-    
+
     Returns
     -------
     Mesh
