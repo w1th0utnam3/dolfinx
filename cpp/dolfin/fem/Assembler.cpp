@@ -623,15 +623,15 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
   auto cell_integral = M.integrals().cell_integral();
 
   // Check whether integral is domain-dependent
-  auto domains = M.cell_domains();
-  bool use_domains = domains && domains->size() > 0;
+  auto cell_domains = M.cell_domains();
+  bool use_cell_domains = cell_domains && cell_domains->size() > 0;
 
   // Iterate over all cells
   for (const auto& cell : mesh::MeshRange<mesh::Cell>(mesh))
   {
     // Get integral for sub domain (if any)
-    if (use_domains)
-      cell_integral = M.integrals().cell_integral((*domains)[cell]);
+    if (use_cell_domains)
+      cell_integral = M.integrals().cell_integral((*cell_domains)[cell]);
 
     // Skip if no integral on current domain
     if (!cell_integral)
@@ -664,22 +664,22 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
   mesh.init(tdim - 1, tdim);
 
   // Get exterior facet integral
-  auto facet_integral = M.integrals().exterior_facet_integral();
+  auto exterior_facet_integral = M.integrals().exterior_facet_integral();
 
   // Check whether facet integral is domain dependent
-  domains = M.exterior_facet_domains();
-  use_domains = domains && domains->size() > 0;
+  auto exterior_facet_domains = M.exterior_facet_domains();
+  auto use_exterior_facet_domains = exterior_facet_domains && exterior_facet_domains->size() > 0;
 
   // Iterate over exterior facets
-  for (auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  for (const auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
   {
     if (!facet.exterior())
       continue;
 
-    if (use_domains)
-      facet_integral = M.integrals().exterior_facet_integral((*domains)[facet]);
+    if (use_exterior_facet_domains)
+      exterior_facet_integral = M.integrals().exterior_facet_integral((*exterior_facet_domains)[facet]);
 
-    if (!facet_integral)
+    if (!exterior_facet_integral)
       continue;
 
     assert(facet.num_entities(tdim) == 1);
@@ -691,15 +691,94 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
     coordinate_dofs.resize(mesh_cell.num_vertices(), gdim);
     mesh_cell.get_coordinate_dofs(coordinate_dofs);
 
-    ufc.update(mesh_cell, coordinate_dofs, facet_integral->enabled_coefficients);
+    ufc.update(mesh_cell, coordinate_dofs, exterior_facet_integral->enabled_coefficients);
 
     me.setZero();
 
     // TODO: the cell orientation
-    facet_integral->tabulate_tensor(me.data(), ufc.w(), coordinate_dofs.data(), local_facet, 1);
+    exterior_facet_integral->tabulate_tensor(me.data(), ufc.w(), coordinate_dofs.data(), local_facet, 1);
 
     m.add(me.data()[0]);
   }
+
+
+  // Interior facet assembly
+  // Sanity check of ghost mode (proper check in AssemblerBase::check)
+  assert(mesh.ghost_mode() == "shared_vertex"
+         or mesh.ghost_mode() == "shared_facet"
+         or MPI::size(mesh.mpi_comm()) == 1);
+
+  mesh.init(tdim - 1);
+  mesh.init(tdim - 1, tdim);
+
+  auto interior_facet_integral = M.integrals().interior_facet_integral();
+
+  // Check whether facet integral is domain dependent
+  auto interior_facet_domains = M.interior_facet_domains();
+  auto use_interior_facet_domains = interior_facet_domains && interior_facet_domains->size() > 0;
+
+  std::vector<EigenRowArrayXXd, Eigen::aligned_allocator<EigenRowArrayXXd>> neighbour_coordinate_dofs(2);
+
+  const std::size_t mpi_rank = MPI::rank(mesh.mpi_comm());
+
+  for (const auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  {
+    if (facet.exterior())
+      continue;
+
+    assert(!facet.is_ghost());
+
+    if (use_interior_facet_domains)
+      interior_facet_integral = M.integrals().interior_facet_integral((*interior_facet_domains)[facet]);
+
+    if (!interior_facet_integral)
+      continue;
+
+    assert(facet.num_entities(tdim) == 2);
+    auto cell_index_plus = facet.entities(tdim)[0];
+    auto cell_index_minus = facet.entities(tdim)[1];
+
+    if (use_cell_domains and (*cell_domains)[cell_index_plus] < (*cell_domains)[cell_index_minus])
+      std::swap(cell_index_plus, cell_index_minus);
+
+    // The convention '+' = 0, '-' = 1 is from ffc
+    const mesh::Cell cell0(mesh, cell_index_plus);
+    const mesh::Cell cell1(mesh, cell_index_minus);
+
+    // Get local index of facet with respect to each cell
+    std::size_t local_facet0 = cell0.index(facet);
+    std::size_t local_facet1 = cell1.index(facet);
+
+    // Update to current pair of cells
+    neighbour_coordinate_dofs[0].resize(cell0.num_vertices(), gdim);
+    cell0.get_coordinate_dofs(neighbour_coordinate_dofs[0]);
+    ufc.update(cell0, neighbour_coordinate_dofs[0], interior_facet_integral->enabled_coefficients);
+
+    neighbour_coordinate_dofs[1].resize(cell1.num_vertices(), gdim);
+    cell1.get_coordinate_dofs(neighbour_coordinate_dofs[1]);
+    ufc.update(cell1, neighbour_coordinate_dofs[1], interior_facet_integral->enabled_coefficients);
+
+    // Prepare for assembly
+    me.setZero();
+
+    // TODO: sort out the orientation
+    interior_facet_integral->tabulate_tensor(me.data(), ufc.w(),
+                                             neighbour_coordinate_dofs[0].data(),
+                                             neighbour_coordinate_dofs[1].data(),
+                                             local_facet0, local_facet1,
+                                             1, 1);
+
+    if (cell0.is_ghost() != cell1.is_ghost())
+    {
+      const std::size_t ghost_rank = cell0.is_ghost() ? cell0.owner() : cell1.owner();
+      assert(mpi_rank != ghost_rank);
+      if (ghost_rank < mpi_rank)
+        continue;
+    }
+
+    m.add(me.data()[0]);
+  }
+
 
   // FIXME: Put this elsewhere?
   // Finalise matrix

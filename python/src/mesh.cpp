@@ -190,6 +190,9 @@ void mesh(py::module& m)
       .def("index",
            py::overload_cast<>(&dolfin::mesh::MeshEntity::index, py::const_),
            "Index")
+      .def("index", py::overload_cast<const dolfin::mesh::MeshEntity&>(
+           &dolfin::mesh::MeshEntity::index, py::const_),
+           "Local index of a MeshEntity relative to this MeshEntity")
       .def("global_index", &dolfin::mesh::MeshEntity::global_index,
            "Global index")
       .def("num_entities", &dolfin::mesh::MeshEntity::num_entities,

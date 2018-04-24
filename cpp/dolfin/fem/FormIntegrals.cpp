@@ -199,8 +199,8 @@ FormIntegrals::interior_facet_integral() const
 std::shared_ptr<const ufc_interior_facet_integral>
 FormIntegrals::interior_facet_integral(unsigned int i) const
 {
-  if (i + 1 >= _interior_facet_integrals.size())
-    return std::shared_ptr<const ufc_interior_facet_integral>();
+  if (i + 1 >= _interior_facet_integrals.size() or !_interior_facet_integrals[i + 1])
+    return interior_facet_integral();  // Not on a subdomain, so return the default
   else
     return _interior_facet_integrals[i + 1];
 }
