@@ -11,7 +11,7 @@ import os
 import numpy
 import dolfin
 import ufl
-from ufl import dx, ds
+from ufl import dx, ds, dS
 
 from dolfin_utils.test import skip_in_parallel, filedir, pushpop_parameters
 
@@ -154,6 +154,19 @@ def test_functional_assembly(mesh_factory, facet_area):
 
     M1 = f*ds(mesh)
     assert round(dolfin.fem.assembling.assemble_scalar(M1) - facet_area, 7) == 0
+
+    h_sum = 0.0
+    for facet in dolfin.Facets(mesh):
+        if facet.exterior():
+            continue
+        cell = dolfin.Cell(mesh, facet.entities(mesh.topology.dim)[0])
+        h_sum += cell.facet_area(cell.index(facet))
+    h_sum = dolfin.MPI.sum(mesh.mpi_comm(), h_sum)
+
+    M2 = f*dS(mesh)
+    eval = dolfin.fem.assembling.assemble_scalar(M2)
+    print(eval)
+    assert round(eval - h_sum, 7) == 0
 
 
 @pytest.mark.parametrize('mesh_factory', [(dolfin.generation.UnitCubeMesh, (dolfin.MPI.comm_world, 4, 4, 4)),
