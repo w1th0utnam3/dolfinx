@@ -11,7 +11,7 @@ import os
 import numpy
 import dolfin
 import ufl
-from ufl import *
+from ufl import dx, ds
 
 from dolfin_utils.test import skip_in_parallel, filedir, pushpop_parameters
 
@@ -58,7 +58,7 @@ def test_cell_assembly():
     f = dolfin.Constant((10, 20, 30))
 
     def epsilon(v):
-        return 0.5*(grad(v) + grad(v).T)
+        return 0.5*(ufl.grad(v) + ufl.grad(v).T)
 
     a = ufl.inner(epsilon(v), epsilon(u))*dx
     L = ufl.inner(v, f)*dx
