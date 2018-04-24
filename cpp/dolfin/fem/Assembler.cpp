@@ -17,6 +17,7 @@
 #include <dolfin/la/Scalar.h>
 #include <dolfin/la/SparsityPattern.h>
 #include <dolfin/mesh/Cell.h>
+#include <dolfin/mesh/Facet.h>
 #include <dolfin/mesh/Mesh.h>
 #include <dolfin/mesh/MeshFunction.h>
 #include <dolfin/mesh/MeshIterator.h>
@@ -623,10 +624,10 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
 
   // Check whether integral is domain-dependent
   auto domains = M.cell_domains();
-  bool use_domains = domains && !domains->size() == 0;
+  bool use_domains = domains && domains->size() > 0;
 
   // Iterate over all cells
-  for (auto& cell : mesh::MeshRange<mesh::Cell>(mesh))
+  for (const auto& cell : mesh::MeshRange<mesh::Cell>(mesh))
   {
     // Get integral for sub domain (if any)
     if (use_domains)
@@ -654,6 +655,49 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
                                    1);
 
     // Add to scalar
+    m.add(me.data()[0]);
+  }
+
+
+  // Exterior facet assembly
+  mesh.init(tdim - 1);
+  mesh.init(tdim - 1, tdim);
+
+  // Get exterior facet integral
+  auto facet_integral = M.integrals().exterior_facet_integral();
+
+  // Check whether facet integral is domain dependent
+  domains = M.exterior_facet_domains();
+  use_domains = domains && domains->size() > 0;
+
+  // Iterate over exterior facets
+  for (auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  {
+    if (!facet.exterior())
+      continue;
+
+    if (use_domains)
+      facet_integral = M.integrals().exterior_facet_integral((*domains)[facet]);
+
+    if (!facet_integral)
+      continue;
+
+    assert(facet.num_entities(tdim) == 1);
+    const mesh::Cell mesh_cell(mesh, facet.entities(tdim)[0]);
+
+    assert(!mesh_cell.is_ghost());
+    const std::size_t local_facet = mesh_cell.index(facet);
+
+    coordinate_dofs.resize(mesh_cell.num_vertices(), gdim);
+    mesh_cell.get_coordinate_dofs(coordinate_dofs);
+
+    ufc.update(mesh_cell, coordinate_dofs, facet_integral->enabled_coefficients);
+
+    me.setZero();
+
+    // TODO: the cell orientation
+    facet_integral->tabulate_tensor(me.data(), ufc.w(), coordinate_dofs.data(), local_facet, 1);
+
     m.add(me.data()[0]);
   }
 

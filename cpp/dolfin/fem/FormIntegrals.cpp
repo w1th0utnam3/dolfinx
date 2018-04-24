@@ -176,8 +176,8 @@ FormIntegrals::exterior_facet_integral() const
 std::shared_ptr<const ufc_exterior_facet_integral>
 FormIntegrals::exterior_facet_integral(unsigned int i) const
 {
-  if (i + 1 >= _exterior_facet_integrals.size())
-    return std::shared_ptr<const ufc_exterior_facet_integral>();
+  if (i + 1 >= _exterior_facet_integrals.size() or !_exterior_facet_integrals[i + 1])
+    return exterior_facet_integral();  // Not on a subdomain, so return the default
   else
     return _exterior_facet_integrals[i + 1];
 }
