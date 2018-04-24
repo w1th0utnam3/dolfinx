@@ -152,8 +152,8 @@ def test_functional_assembly(mesh_factory, facet_area):
     M0 = f*dx(mesh)
     assert round(dolfin.fem.assembling.assemble_scalar(M0) - 1.0, 7) == 0
 
-    # M1 = f*ds(mesh)
-    # assert round(dolfin.fem.assembling.assemble_scalar(M1) - facet_area, 7) == 0
+    M1 = f*ds(mesh)
+    assert round(dolfin.fem.assembling.assemble_scalar(M1) - facet_area, 7) == 0
 
 
 @pytest.mark.parametrize('mesh_factory', [(dolfin.generation.UnitCubeMesh, (dolfin.MPI.comm_world, 4, 4, 4)),
