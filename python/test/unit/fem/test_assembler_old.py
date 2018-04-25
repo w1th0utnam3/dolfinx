@@ -175,7 +175,6 @@ def test_functional_assembly_interior(mesh_factory, args):
 
     M2 = f*dS(mesh)
     eval = dolfin.fem.assembling.assemble_scalar(M2)
-    print(eval)
     assert round(eval - h_sum, 7) == 0
 
 
@@ -245,73 +244,75 @@ def test_subdomain_and_fulldomain_assembly_meshdomains(mesh_factory):
         sub = list(map(dolfin.fem.assembling.assemble_scalar, sub_form))
         for k in krange:
             assert round(sub[k] + full - subplusfull[k], 7) == 0
-#
-#
-# @skip_in_parallel
-# def test_subdomain_assembly_form_1():
-#     "Test assembly over subdomains with markers stored as part of form"
-#
-#     mesh = UnitSquareMesh(MPI.comm_world, 4, 4)
-#
-#     # Define cell/facet function
-#     class Left(SubDomain):
-#         def inside(self, x, on_boundary):
-#             return x[0] < 0.49
-#     subdomains = MeshFunction("size_t", mesh, mesh.topology.dim)
-#     subdomains.set_all(0)
-#     left = Left()
-#     left.mark(subdomains, 1)
-#
-#     class RightBoundary(SubDomain):
-#         def inside(self, x, on_boundary):
-#             return x[0] > 0.95
-#     boundaries = MeshFunction("size_t", mesh, mesh.topology.dim-1)
-#     boundaries.set_all(0)
-#     right = RightBoundary()
-#     right.mark(boundaries, 1)
-#
-#     V = FunctionSpace(mesh, "CG", 2)
-#     f = Expression("x[0] + 2", degree=1)
-#     g = Expression("x[1] + 1", degree=1)
-#
-#     f = interpolate(f, V)
-#     g = interpolate(g, V)
-#
-#     mesh1 = subdomains.mesh()
-#     mesh2 = boundaries.mesh()
-#     assert mesh1.id() == mesh2.id()
-#     assert mesh1.ufl_domain().ufl_id() == mesh2.ufl_domain().ufl_id()
-#
-#     dxs = dx(subdomain_data=subdomains)
-#     dss = ds(subdomain_data=boundaries)
-#     assert dxs.ufl_domain() == None
-#     assert dss.ufl_domain() == None
-#     assert dxs.subdomain_data() == subdomains
-#     assert dss.subdomain_data() == boundaries
-#
-#     M = f*f*dxs(0) + g*f*dxs(1) + f*f*dss(1)
-#     assert M.ufl_domains() == (mesh.ufl_domain(),)
-#     sd = M.subdomain_data()[mesh.ufl_domain()]
-#     assert sd["cell"] == subdomains
-#     assert sd["exterior_facet"] == boundaries
-#
-#     # Check that subdomains are respected
-#     reference = 15.0
-#     assert round(assemble(M) - reference, 10) == 0
-#
-#     # Check that the form itself assembles as before
-#     assert round(assemble(M) - reference, 10) == 0
-#
-#     # Take action of derivative of M on f
-#     df = TestFunction(V)
-#     L = derivative(M, f, df)
-#     dg = TrialFunction(V)
-#     F = derivative(L, g, dg)
-#     b = action(F, f)
-#
-#     # Check that domain data carries across transformations:
-#     reference = 0.136477465659
-#     assert round(assemble(b).norm("l2") - reference, 8) == 0
+
+
+@skip_in_parallel
+def test_subdomain_assembly_form_1():
+    "Test assembly over subdomains with markers stored as part of form"
+
+    mesh = dolfin.UnitSquareMesh(dolfin.MPI.comm_world, 4, 4)
+
+    # Define cell/facet function
+    class Left(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return x[:,0] < 0.49
+    subdomains = dolfin.MeshFunction("size_t", mesh, mesh.topology.dim, 0)
+    left = Left()
+    left.mark(subdomains, 1)
+
+    class RightBoundary(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return x[:,0] > 0.95
+    boundaries = dolfin.MeshFunction("size_t", mesh, mesh.topology.dim-1, 0)
+    right = RightBoundary()
+    right.mark(boundaries, 1)
+
+    V = dolfin.FunctionSpace(mesh, "CG", 2)
+    f = dolfin.Expression("x[0] + 2", degree=1)
+    g = dolfin.Expression("x[1] + 1", degree=1)
+
+    f = dolfin.interpolate(f, V)
+    g = dolfin.interpolate(g, V)
+
+    mesh1 = subdomains.mesh()
+    mesh2 = boundaries.mesh()
+    assert mesh1.id() == mesh2.id()
+    assert mesh1.ufl_domain().ufl_id() == mesh2.ufl_domain().ufl_id()
+
+    dxs = dx(subdomain_data=subdomains)
+    dss = ds(subdomain_data=boundaries)
+    assert dxs.ufl_domain() == None
+    assert dss.ufl_domain() == None
+    assert dxs.subdomain_data() == subdomains
+    assert dss.subdomain_data() == boundaries
+
+    M = f*f*dxs(0) + g*f*dxs(1) + f*f*dss(1)
+    assert M.ufl_domains() == (mesh.ufl_domain(),)
+    sd = M.subdomain_data()[mesh.ufl_domain()]
+    assert sd["cell"] == subdomains
+    assert sd["exterior_facet"] == boundaries
+
+    assemble = dolfin.fem.assembling.assemble_scalar
+    # Check that subdomains are respected
+    reference = 15.0
+    assert round(assemble(M) - reference, 10) == 0
+
+    # Check that the form itself assembles as before
+    assert round(assemble(M) - reference, 10) == 0
+
+    # Take action of derivative of M on f
+    df = dolfin.TestFunction(V)
+    L = dolfin.derivative(M, f, df)
+    dg = dolfin.TrialFunction(V)
+    F = dolfin.derivative(L, g, dg)
+    b = dolfin.action(F, f)
+
+    dummy_a = df*dg*dx
+    b_vector = dolfin.la.PETScVector(mesh.mpi_comm())
+    assembler = dolfin.fem.assembling.Assembler(dummy_a, b, [])
+    # Check that domain data carries across transformations:
+    reference = 0.136477465659
+    assert round(assembler.assemble(b_vector).norm("l2") - reference, 8) == 0
 #
 #
 # def test_subdomain_assembly_form_2():
