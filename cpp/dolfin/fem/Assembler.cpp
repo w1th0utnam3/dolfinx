@@ -704,8 +704,8 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
 
   // Interior facet assembly
   // Sanity check of ghost mode (proper check in AssemblerBase::check)
-  assert(mesh.ghost_mode() == "shared_vertex"
-         or mesh.ghost_mode() == "shared_facet"
+  assert(mesh.get_ghost_mode() == "shared_vertex"
+         or mesh.get_ghost_mode() == "shared_facet"
          or MPI::size(mesh.mpi_comm()) == 1);
 
   mesh.init(tdim - 1);

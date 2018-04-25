@@ -120,51 +120,40 @@ void fem::init_monolithic(la::PETScMatrix& A,
                           std::vector<std::vector<const fem::Form*>> a)
 {
   // FIXME: handle null blocks
-
-  // std::cout << "Initialising block matrix" << std::endl;
-
   // Block shape
-  const auto shape = boost::extents[a.size()][a[0].size()];
+  // need to keep SparsityPatterns in scope before passing to PETScMatrix::init()
+  std::vector<std::vector<std::shared_ptr<la::SparsityPattern>>> pattern_blocks(
+      a.size(), std::vector<std::shared_ptr<la::SparsityPattern>>(a[0].size()));
 
-  boost::multi_array<std::shared_ptr<la::SparsityPattern>, 2> patterns(shape);
-  std::vector<std::vector<const la::SparsityPattern*>> p(
+  std::vector<std::vector<const la::SparsityPattern*>> pattern_blocks_p(
       a.size(), std::vector<const la::SparsityPattern*>(a[0].size()));
+
   for (std::size_t row = 0; row < a.size(); ++row)
   {
     for (std::size_t col = 0; col < a[row].size(); ++col)
     {
-      // std::cout << "  Initialising block: " << row << ", " << col <<
-      // std::endl;
-      auto map0 = a[row][col]->function_space(0)->dofmap()->index_map();
-      auto map1 = a[row][col]->function_space(1)->dofmap()->index_map();
-
-      // std::cout << "  Push Initialising block: " << std::endl;
-      std::array<std::shared_ptr<const common::IndexMap>, 2> maps
-          = {{map0, map1}};
-      patterns[row][col]
-          = std::make_shared<la::SparsityPattern>(A.mpi_comm(), maps, 0);
-
       // Build sparsity pattern
-      // std::cout << "  Build sparsity pattern " << std::endl;
       std::array<const GenericDofMap*, 2> dofmaps
           = {{a[row][col]->function_space(0)->dofmap().get(),
               a[row][col]->function_space(1)->dofmap().get()}};
-      SparsityPatternBuilder::build(*patterns[row][col], *a[row][col]->mesh(),
-                                    dofmaps, true, false, false, false, false);
-      // std::cout << "  End Build sparsity pattern " << std::endl;
-      p[row][col] = patterns[row][col].get();
-      // std::cout << "  End push back sparsity pattern pointer " << std::endl;
+
+      pattern_blocks[row][col] = std::make_shared<la::SparsityPattern>(
+              SparsityPatternBuilder::build(
+                      A.mpi_comm(), *a[row][col]->mesh(), dofmaps,
+                      (a[row][col]->integrals().num_cell_integrals() > 0),
+                      (a[row][col]->integrals().num_interior_facet_integrals() > 0),
+                      (a[row][col]->integrals().num_exterior_facet_integrals() > 0),
+                      (a[row][col]->integrals().num_vertex_integrals() > 0),
+                      false));
+      pattern_blocks_p[row][col] = pattern_blocks[row][col].get();
     }
   }
 
   // Create merged sparsity pattern
-  // std::cout << "  Build merged sparsity pattern" << std::endl;
-  la::SparsityPattern pattern(A.mpi_comm(), p);
+  la::SparsityPattern pattern(A.mpi_comm(), pattern_blocks_p);
 
   // Initialise matrix
-  // std::cout << "  Init parent matrix" << std::endl;
   A.init(pattern);
-  // std::cout << "  Post init parent matrix" << std::endl;
 }
 //-----------------------------------------------------------------------------
 void fem::init_monolithic(la::PETScVector& x, std::vector<const fem::Form*> L)
