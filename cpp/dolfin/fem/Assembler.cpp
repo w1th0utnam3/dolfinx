@@ -573,7 +573,6 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
 
     // Get dof maps for cell
     auto dmap = dofmap->cell_dofs(cell.index());
-    // auto dmap1 = dofmaps[1]->cell_dofs(cell.index());
 
     // Size data structure for assembly
     be.resize(dmap.size());
@@ -584,8 +583,6 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
                                    1);
 
     // Add to vector
-    // std::cout << "Adding to vector: " << be(0) << ", " << dmap[0] <<
-    // std::endl;
     b.add_local(be.data(), dmap.size(), dmap.data());
   }
 
@@ -778,7 +775,6 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
 
     m.add(me.data()[0]);
   }
-
 
   // FIXME: Put this elsewhere?
   // Finalise matrix
