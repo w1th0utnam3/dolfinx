@@ -155,6 +155,16 @@ def test_functional_assembly(mesh_factory, facet_area):
     M1 = f*ds(mesh)
     assert round(dolfin.fem.assembling.assemble_scalar(M1) - facet_area, 7) == 0
 
+
+@pytest.mark.parametrize('mesh_factory, args', [(dolfin.generation.UnitSquareMesh, (dolfin.MPI.comm_world, 4, 4)),
+                                          (dolfin.generation.UnitCubeMesh, (dolfin.MPI.comm_world, 2, 2, 2)),
+                                          (dolfin.generation.UnitSquareMesh, (dolfin.MPI.comm_world, 4, 4, dolfin.CellType.Type.quadrilateral)),
+                                          pytest.param(dolfin.generation.UnitCubeMesh, (dolfin.MPI.comm_world, 2, 2, 2, dolfin.CellType.Type.hexahedron), marks=pytest.mark.xfail)])
+def test_functional_assembly_interior(mesh_factory, args):
+    mesh = mesh_factory(*args)
+
+    f = dolfin.Constant(1.0)
+
     h_sum = 0.0
     for facet in dolfin.Facets(mesh):
         if facet.exterior():
