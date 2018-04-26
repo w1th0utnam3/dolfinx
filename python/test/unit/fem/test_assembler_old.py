@@ -310,10 +310,12 @@ def test_subdomain_assembly_form_1():
     dummy_a = df*dg*dx
     b_vector = dolfin.la.PETScVector(mesh.mpi_comm())
     assembler = dolfin.fem.assembling.Assembler(dummy_a, b, [])
+    assembler.assemble(b=b_vector, mat_type=dolfin.cpp.fem.Assembler.BlockType.monolithic)
+
     # Check that domain data carries across transformations:
     reference = 0.136477465659
-    assert round(assembler.assemble(b_vector).norm("l2") - reference, 8) == 0
-#
+    assert round(b_vector.norm("l2") - reference, 8) == 0
+
 #
 # def test_subdomain_assembly_form_2():
 #     "Test assembly over subdomains with markers stored as part of form"
