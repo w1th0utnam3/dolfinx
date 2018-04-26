@@ -316,69 +316,79 @@ def test_subdomain_assembly_form_1():
     reference = 0.136477465659
     assert round(b_vector.norm("l2") - reference, 8) == 0
 
-#
-# def test_subdomain_assembly_form_2():
-#     "Test assembly over subdomains with markers stored as part of form"
-#
-#     # Define mesh
-#     mesh = UnitSquareMesh(MPI.comm_world, 8, 8)
-#
-#     # Define domain for lower left corner
-#     class MyDomain(SubDomain):
-#         def inside(self, x, on_boundary):
-#             return x[0] < 0.5 + DOLFIN_EPS and x[1] < 0.5 + DOLFIN_EPS
-#     my_domain = MyDomain()
-#
-#     # Define boundary for lower left corner
-#     class MyBoundary(SubDomain):
-#         def inside(self, x, on_boundary):
-#             return (x[0] < 0.5 + DOLFIN_EPS and x[1] < DOLFIN_EPS) or \
-#                    (x[1] < 0.5 + DOLFIN_EPS and x[0] < DOLFIN_EPS)
-#     my_boundary = MyBoundary()
-#
-#     # Mark mesh functions
-#     D = mesh.topology.dim
-#     cell_domains = MeshFunction("size_t", mesh, D)
-#     exterior_facet_domains = MeshFunction("size_t", mesh, D - 1)
-#     cell_domains.set_all(1)
-#     exterior_facet_domains.set_all(1)
-#     my_domain.mark(cell_domains, 0)
-#     my_boundary.mark(exterior_facet_domains, 0)
-#
-#     # Define forms
-#     c = Constant(1.0)
-#
-#     a0 = c*dx(0, domain=mesh, subdomain_data=cell_domains)
-#     a1 = c*ds(0, domain=mesh, subdomain_data=exterior_facet_domains)
-#
-#     assert round(assemble(a0) - 0.25, 7) == 0
-#     assert round(assemble(a1) - 1.0, 7) == 0
-#
-#
-# def test_nonsquare_assembly():
-#     """Test assembly of a rectangular matrix"""
-#
-#     mesh = UnitSquareMesh(MPI.comm_world, 16, 16)
-#
-#     V = VectorElement("Lagrange", mesh.ufl_cell(), 2)
-#     Q = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
-#     W = V*Q
-#     V = FunctionSpace(mesh, V)
-#     Q = FunctionSpace(mesh, Q)
-#     W = FunctionSpace(mesh, W)
-#
-#     (v, q) = TestFunctions(W)
-#     (u, p) = TrialFunctions(W)
-#     a = div(v)*p*dx
-#     A_frobenius_norm = 9.6420303878382718e-01
-#     assert round(assemble(a).norm("frobenius") - A_frobenius_norm, 10) == 0
-#
-#     v = TestFunction(V)
-#     p = TrialFunction(Q)
-#     a = inner(grad(p), v)*dx
-#     A_frobenius_norm = 0.935414346693
-#     assert round(assemble(a).norm("frobenius") - A_frobenius_norm, 10) == 0
-#
+
+def test_subdomain_assembly_form_2():
+    "Test assembly over subdomains with markers stored as part of form"
+
+    # Define mesh
+    mesh = dolfin.UnitSquareMesh(dolfin.MPI.comm_world, 8, 8)
+
+    # Define domain for lower left corner
+    class MyDomain(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return numpy.logical_and(x[:,0] < (0.5 + dolfin.DOLFIN_EPS), x[:,1] < 0.5 + dolfin.DOLFIN_EPS)
+    my_domain = MyDomain()
+
+    # Define boundary for lower left corner
+    class MyBoundary(dolfin.SubDomain):
+        def inside(self, x, on_boundary):
+            return numpy.logical_or(
+                numpy.logical_and(x[:,0] < (0.5 + dolfin.DOLFIN_EPS), x[:,1] < dolfin.DOLFIN_EPS),
+                numpy.logical_and(x[:,1] < (0.5 + dolfin.DOLFIN_EPS), x[:,0] < dolfin.DOLFIN_EPS)
+            )
+    my_boundary = MyBoundary()
+
+    # Mark mesh functions
+    D = mesh.topology.dim
+    cell_domains = dolfin.MeshFunction("size_t", mesh, D, 1)
+    exterior_facet_domains = dolfin.MeshFunction("size_t", mesh, D - 1, 1)
+
+    my_domain.mark(cell_domains, 0)
+    my_boundary.mark(exterior_facet_domains, 0)
+
+    # Define forms
+    c = dolfin.Constant(1.0)
+
+    a0 = c*dx(0, domain=mesh, subdomain_data=cell_domains)
+    a1 = c*ds(0, domain=mesh, subdomain_data=exterior_facet_domains)
+
+    assert round(dolfin.fem.assembling.assemble_scalar(a0) - 0.25, 7) == 0
+    assert round(dolfin.fem.assembling.assemble_scalar(a1) - 1.0, 7) == 0
+
+
+def test_nonsquare_assembly():
+    """Test assembly of a rectangular matrix"""
+
+    mesh = dolfin.UnitSquareMesh(dolfin.MPI.comm_world, 16, 16)
+
+    V = dolfin.VectorElement("Lagrange", mesh.ufl_cell(), 2)
+    Q = dolfin.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+    W = V*Q
+    V = dolfin.FunctionSpace(mesh, V)
+    Q = dolfin.FunctionSpace(mesh, Q)
+    W = dolfin.FunctionSpace(mesh, W)
+
+    (v, q) = dolfin.TestFunctions(W)
+    (u, p) = dolfin.TrialFunctions(W)
+    a = ufl.div(v)*p*dx
+    L = v[0]*dx
+    A_frobenius_norm = 9.6420303878382718e-01
+
+    A = dolfin.cpp.la.PETScMatrix(mesh.mpi_comm())
+    assembler = dolfin.fem.assembling.Assembler([[a]], [L], [])
+    assembler.assemble(A=A, mat_type=dolfin.cpp.fem.Assembler.BlockType.monolithic)
+    assert round(A.norm("frobenius") - A_frobenius_norm, 10) == 0
+
+    v = dolfin.TestFunction(V)
+    p = dolfin.TrialFunction(Q)
+    a = ufl.inner(ufl.grad(p), v)*dx
+
+    A = dolfin.cpp.la.PETScMatrix(mesh.mpi_comm())
+    assembler = dolfin.fem.assembling.Assembler([[a]], [L], [])
+    assembler.assemble(A=A, mat_type=dolfin.cpp.fem.Assembler.BlockType.monolithic)
+    A_frobenius_norm = 0.935414346693
+    assert round(A.norm("frobenius") - A_frobenius_norm, 10) == 0
+
 #
 # @skip_in_parallel
 # def test_reference_assembly(filedir, pushpop_parameters):

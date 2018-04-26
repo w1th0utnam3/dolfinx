@@ -730,6 +730,7 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
         continue;
     }
 
+    // FIXME: Can this be replaced with a Ref or Map somehow?
     Eigen::Array<dolfin::la_index_t, Eigen::Dynamic, 1> macro_dofs(macro_dmap_size);
     macro_dofs << dmap0, dmap1;
     b.add_local(be.data(), macro_dmap_size, macro_dofs.data());
