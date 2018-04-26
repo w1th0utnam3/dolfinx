@@ -78,40 +78,46 @@ def test_cell_assembly():
     assert round(b.norm("l2") - b_l2_norm, 10) == 0
 
 
-# def test_facet_assembly(pushpop_parameters):
-#     parameters["ghost_mode"] = "shared_facet"
-#     mesh = UnitSquareMesh(MPI.comm_world, 24, 24)
-#     V = FunctionSpace(mesh, "DG", 1)
-#
-#     # Define test and trial functions
-#     v = TestFunction(V)
-#     u = TrialFunction(V)
-#
-#     # Define normal component, mesh size and right-hand side
-#     n = FacetNormal(mesh)
-#     h = 2*Circumradius(mesh)
-#     h_avg = (h('+') + h('-'))/2
-#     f = Expression("500.0*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)", degree=1)
-#
-#     # Define bilinear form
-#     a = dot(grad(v), grad(u))*dx \
-#         - dot(avg(grad(v)), jump(u, n))*dS \
-#         - dot(jump(v, n), avg(grad(u)))*dS \
-#         + 4.0/h_avg*dot(jump(v, n), jump(u, n))*dS \
-#         - dot(grad(v), u*n)*ds \
-#         - dot(v*n, grad(u))*ds \
-#         + 8.0/h*v*u*ds
-#
-#     # Define linear form
-#     L = v*f*dx
-#
-#     # Reference values
-#     A_frobenius_norm = 157.867392938645
-#     b_l2_norm = 1.48087142738768
-#
-#     # Assemble A and b
-#     assert round(assemble(a).norm("frobenius") - A_frobenius_norm, 10) == 0
-#     assert round(assemble(L).norm("l2") - b_l2_norm, 10) == 0
+@pytest.mark.xfail(condition=dolfin.MPI.size(dolfin.MPI.comm_world) > 0,
+                   reason="Ghost mode not yet working")
+def test_facet_assembly():
+    mesh = dolfin.UnitSquareMesh(dolfin.MPI.comm_world, 24, 24)
+    V = dolfin.FunctionSpace(mesh, "DG", 1)
+
+    # Define test and trial functions
+    v = dolfin.TestFunction(V)
+    u = dolfin.TrialFunction(V)
+
+    # Define normal component, mesh size and right-hand side
+    n = ufl.FacetNormal(mesh)
+    h = 2*ufl.Circumradius(mesh)
+    h_avg = (h('+') + h('-'))/2
+    f = dolfin.Expression("500.0*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)", degree=1)
+
+    # Define bilinear form
+    a = ufl.dot(ufl.grad(v), ufl.grad(u))*dx \
+        - ufl.dot(ufl.avg(ufl.grad(v)), ufl.jump(u, n))*dS \
+        - ufl.dot(ufl.jump(v, n), ufl.avg(ufl.grad(u)))*dS \
+        + 4.0/h_avg*ufl.dot(ufl.jump(v, n), ufl.jump(u, n))*dS \
+        - ufl.dot(ufl.grad(v), u*n)*ds \
+        - ufl.dot(v*n, ufl.grad(u))*ds \
+        + 8.0/h*v*u*ds
+
+    # Define linear form
+    L = v*f*dx
+
+    # Reference values
+    A_frobenius_norm = 157.867392938645
+    b_l2_norm = 1.48087142738768
+
+    # Assemble A and b
+    assembler = dolfin.fem.assembling.Assembler(a, L, [])
+    A = dolfin.cpp.la.PETScMatrix(mesh.mpi_comm())
+    b = dolfin.cpp.la.PETScVector(mesh.mpi_comm())
+    assembler.assemble(A=A, b=b, mat_type=dolfin.cpp.fem.Assembler.BlockType.monolithic)
+
+    assert round(A.norm("frobenius") - A_frobenius_norm, 10) == 0
+    assert round(b.norm("l2") - b_l2_norm, 10) == 0
 
 
 # def test_ghost_mode_handling(pushpop_parameters):
