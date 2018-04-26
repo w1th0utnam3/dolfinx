@@ -87,8 +87,8 @@ def test_matrix_assembly_bc():
     ass0 = dolfin.fem.assembling.SystemAssembler(a, L, [bc])
     ass0.assemble(B, c)
 
-    b.vec().view()
-    c.vec().view()
+    A.mat().view()
+    B.mat().view()
     # A.mat().view()
     # B.mat().view()
 

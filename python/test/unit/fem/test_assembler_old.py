@@ -389,7 +389,7 @@ def test_nonsquare_assembly():
     A_frobenius_norm = 0.935414346693
     assert round(A.norm("frobenius") - A_frobenius_norm, 10) == 0
 
-#
+
 # @skip_in_parallel
 # def test_reference_assembly(filedir, pushpop_parameters):
 #     "Test assembly against a reference solution"
