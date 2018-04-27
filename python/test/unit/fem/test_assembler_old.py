@@ -1,6 +1,6 @@
 """Unit tests for assembly"""
 
-# Copyright (C) 2011-2014 Garth N. Wells
+# Copyright (C) 2011-2018 Garth N. Wells
 #
 # This file is part of DOLFIN (https://www.fenicsproject.org)
 #
