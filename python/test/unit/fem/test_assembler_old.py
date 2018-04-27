@@ -162,6 +162,8 @@ def test_functional_assembly(mesh_factory, facet_area):
     assert round(dolfin.fem.assembling.assemble_scalar(M1) - facet_area, 7) == 0
 
 
+@pytest.mark.xfail(condition=dolfin.MPI.size(dolfin.MPI.comm_world) > 0,
+                   reason="Ghost mode not yet working")
 @pytest.mark.parametrize('mesh_factory, args', [(dolfin.generation.UnitSquareMesh, (dolfin.MPI.comm_world, 4, 4)),
                                           (dolfin.generation.UnitCubeMesh, (dolfin.MPI.comm_world, 2, 2, 2)),
                                           (dolfin.generation.UnitSquareMesh, (dolfin.MPI.comm_world, 4, 4, dolfin.CellType.Type.quadrilateral)),
