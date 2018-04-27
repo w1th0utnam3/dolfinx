@@ -378,19 +378,17 @@ void Assembler::assemble(la::PETScMatrix& A, la::PETScVector& b)
 void Assembler::assemble(la::PETScMatrix& A, const Form& a,
                          std::vector<std::shared_ptr<const DirichletBC>> bcs)
 {
+  if (a.rank() != 2)
+  {
+    throw std::runtime_error("Expected form of rank 2 for matrix assembly, "
+                             "form has rank " + std::to_string(a.rank()));
+  }
+
   assert(!A.empty());
 
   // Get mesh from form
   assert(a.mesh());
   const mesh::Mesh& mesh = *a.mesh();
-
-  // FIXME: Remove UFC
-  // Create data structures for local assembly data
-  UFC ufc(a);
-
-  const std::size_t gdim = mesh.geometry().dim();
-  const std::size_t tdim = mesh.topology().dim();
-  mesh.init(tdim);
 
   // Function spaces for each axis
   std::array<const function::FunctionSpace*, 2> spaces
@@ -452,14 +450,6 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
         Ae.col(j).setZero();
     }
   };
-
-  // Data structures used in assembly
-  EigenRowArrayXXd coordinate_dofs;
-  EigenRowMatrixXd Ae;
-
-  // Check whether integral is domain-dependent
-  auto cell_domains = a.cell_domains();
-  bool use_cell_domains = cell_domains && cell_domains->size() > 0;
 
   // Cell assembly
   if (a.integrals().num_cell_integrals() > 0)
@@ -574,32 +564,14 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
 //-----------------------------------------------------------------------------
 void Assembler::assemble(la::PETScVector& b, const Form& L)
 {
-  // if (b.empty())
-  //  init(b, L);
-  // FIXME: Apply BCs
-
-  // Get mesh from form
-  assert(L.mesh());
-  const mesh::Mesh& mesh = *L.mesh();
-
-  // FIXME: Remove UFC
-  // Create data structures for local assembly data
-  UFC ufc(L);
-
-  const std::size_t gdim = mesh.geometry().dim();
-  const std::size_t tdim = mesh.topology().dim();
-  mesh.init(tdim);
+  if (L.rank() != 1)
+  {
+    throw std::runtime_error("Expected form of rank 1 for vector assembly, "
+                             "form has rank " + std::to_string(L.rank()));
+  }
 
   // Collect pointers to dof maps
   auto dofmap = L.function_space(0)->dofmap();
-
-  // Data structures used in assembly
-  EigenRowArrayXXd coordinate_dofs;
-  EigenVectorXd be;
-
-  // Check whether integral is domain-dependent
-  auto cell_domains = L.cell_domains();
-  bool use_cell_domains = cell_domains && cell_domains->size() > 0;
 
   // Assemble cells
   if (L.integrals().num_cell_integrals() > 0)
@@ -667,32 +639,11 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
 //-----------------------------------------------------------------------------
 void Assembler::assemble(la::Scalar& m, const Form& M)
 {
-  // Get mesh from form
-  assert(M.mesh());
-  const mesh::Mesh& mesh = *M.mesh();
-
   if (M.rank() != 0)
   {
     throw std::runtime_error("Expected form of rank 0 for scalar assembly, "
                              "form has rank " + std::to_string(M.rank()));
   }
-
-  // FIXME: Remove UFC
-  // Create data structures for local assembly data
-  UFC ufc(M);
-
-  const std::size_t gdim = mesh.geometry().dim();
-  const std::size_t tdim = mesh.topology().dim();
-  mesh.init(tdim);
-
-//  // Data structures used in assembly
-  EigenRowArrayXXd coordinate_dofs;
-  EigenVectorXd me;
-  me.resize(1);
-
-  // Check whether integral is domain-dependent
-  auto cell_domains = M.cell_domains();
-  bool use_cell_domains = cell_domains && cell_domains->size() > 0;
 
   // Iterate over all cells
   if (M.integrals().num_cell_integrals() > 0)
