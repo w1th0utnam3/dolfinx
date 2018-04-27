@@ -507,66 +507,19 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
     assemble_over_exterior_facets(a, init_element_vector, add_local_matrix_to_global);
   }
 
-
   // Interior facet assembly
   if (a.integrals().num_interior_facet_integrals() > 0)
   {
-    // Sanity check of ghost mode (proper check in AssemblerBase::check)
-    assert(mesh.get_ghost_mode() == "shared_vertex"
-           or mesh.get_ghost_mode() == "shared_facet"
-           or MPI::size(mesh.mpi_comm()) == 1);
+    // FIXME: This will not be valid if num_element_dofs can vary by cell in the future
+    const auto init_element_vector = [&dofmaps](dolfin::EigenRowMatrixXd& Ae)
+            -> void { Ae.resize(2*dofmaps[0]->num_element_dofs(0),
+                                2*dofmaps[1]->num_element_dofs(0)); };
 
-    mesh.init(tdim - 1);
-    mesh.init(tdim - 1, tdim);
-
-    auto interior_facet_integral = a.integrals().interior_facet_integral();
-
-    // Check whether facet integral is domain dependent
-    auto interior_facet_domains = a.interior_facet_domains();
-    auto use_interior_facet_domains = interior_facet_domains && interior_facet_domains->size() > 0;
-
-    std::vector<EigenRowArrayXXd, Eigen::aligned_allocator<EigenRowArrayXXd>> neighbour_coordinate_dofs(2);
-
-    const std::size_t mpi_rank = MPI::rank(mesh.mpi_comm());
-
-    for (const auto &facet : mesh::MeshRange<mesh::Facet>(mesh)) {
-      if (facet.exterior())
-        continue;
-
-      assert(!facet.is_ghost());
-
-      if (use_interior_facet_domains)
-        interior_facet_integral = a.integrals().interior_facet_integral((*interior_facet_domains)[facet]);
-
-      if (!interior_facet_integral)
-        continue;
-
-      assert(facet.num_entities(tdim) == 2);
-      auto cell_index_plus = facet.entities(tdim)[0];
-      auto cell_index_minus = facet.entities(tdim)[1];
-
-      if (use_cell_domains and (*cell_domains)[cell_index_plus] < (*cell_domains)[cell_index_minus])
-        std::swap(cell_index_plus, cell_index_minus);
-
-      // The convention '+' = 0, '-' = 1 is from ffc
-      const mesh::Cell cell_plus(mesh, cell_index_plus);
-      const mesh::Cell cell_minus(mesh, cell_index_minus);
-
-      // Get local index of facet with respect to each cell
-      std::size_t local_facet0 = cell_plus.index(facet);
-      std::size_t local_facet1 = cell_minus.index(facet);
-
-      // Update to current pair of cells
-      neighbour_coordinate_dofs[0].resize(cell_plus.num_vertices(), gdim);
-      cell_plus.get_coordinate_dofs(neighbour_coordinate_dofs[0]);
-
-      neighbour_coordinate_dofs[1].resize(cell_minus.num_vertices(), gdim);
-      cell_minus.get_coordinate_dofs(neighbour_coordinate_dofs[1]);
-
-      ufc.update(cell_plus, neighbour_coordinate_dofs[0],
-                 cell_minus, neighbour_coordinate_dofs[1],
-                 interior_facet_integral->enabled_coefficients);
-
+    const auto add_local_matrix_to_global = [&A, &dofmaps, &boundary_values, &apply_bc_to_local_matrix]
+            (dolfin::EigenRowMatrixXd& Ae,
+             const dolfin::mesh::Cell& cell_plus,
+             const dolfin::mesh::Cell& cell_minus)
+            -> void {
       // Get dof maps for cells
       auto dmap0_plus = dofmaps[0]->cell_dofs(cell_plus.index());
       auto dmap0_minus = dofmaps[0]->cell_dofs(cell_minus.index());
@@ -575,24 +528,6 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
 
       const std::size_t macro_dmap0_size = dmap0_plus.size() + dmap0_minus.size();
       const std::size_t macro_dmap1_size = dmap1_plus.size() + dmap1_minus.size();
-
-      // Prepare for assembly -- Ae is now a macro local matrix
-      Ae.resize(macro_dmap0_size, macro_dmap1_size);
-      Ae.setZero();
-
-      // TODO: sort out the orientation
-      interior_facet_integral->tabulate_tensor(Ae.data(), ufc.macro_w(),
-                                               neighbour_coordinate_dofs[0].data(),
-                                               neighbour_coordinate_dofs[1].data(),
-                                               local_facet0, local_facet1,
-                                               1, 1);
-
-      if (cell_plus.is_ghost() != cell_minus.is_ghost()) {
-        const std::size_t ghost_rank = cell_plus.is_ghost() ? cell_plus.owner() : cell_minus.owner();
-        assert(mpi_rank != ghost_rank);
-        if (ghost_rank < mpi_rank)
-          continue;
-      }
 
       // FIXME: Can this be replaced with a Ref or Map somehow? This code is horrendous
       Eigen::Array<dolfin::la_index_t, Eigen::Dynamic, 1> macro_dofs0(macro_dmap0_size);
@@ -611,7 +546,9 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
       A.add_local(Ae.data(),
                   macro_dmap0_size, macro_dofs0.data(),
                   macro_dmap1_size, macro_dofs1.data());
-    }
+    };
+
+    assemble_over_interior_facets(a, init_element_vector, add_local_matrix_to_global);
   }
 
   // Flush matrix
@@ -698,93 +635,29 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
     assemble_over_exterior_facets(L, init_element_vector, add_local_vector_to_global);
   }
 
-
-  // Interior facet assembly
-  // Sanity check of ghost mode (proper check in AssemblerBase::check)
-  assert(mesh.get_ghost_mode() == "shared_vertex"
-         or mesh.get_ghost_mode() == "shared_facet"
-         or MPI::size(mesh.mpi_comm()) == 1);
-
-  mesh.init(tdim - 1);
-  mesh.init(tdim - 1, tdim);
-
-  auto interior_facet_integral = L.integrals().interior_facet_integral();
-
-  // Check whether facet integral is domain dependent
-  auto interior_facet_domains = L.interior_facet_domains();
-  auto use_interior_facet_domains = interior_facet_domains && interior_facet_domains->size() > 0;
-
-  std::vector<EigenRowArrayXXd, Eigen::aligned_allocator<EigenRowArrayXXd>> neighbour_coordinate_dofs(2);
-
-  const std::size_t mpi_rank = MPI::rank(mesh.mpi_comm());
-
-  for (const auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  // Assemble interior facets
+  if (L.integrals().num_exterior_facet_integrals() > 0)
   {
-    if (facet.exterior())
-      continue;
+    // FIXME: This will not be valid if num_element_dofs can vary by cell in the future
+    const auto init_element_vector = [&dofmap](dolfin::EigenRowMatrixXd& be)
+            -> void { be.resize(2*dofmap->num_element_dofs(0), 1); };
 
-    assert(!facet.is_ghost());
+    const auto add_local_vector_to_global = [&b, &dofmap]
+            (dolfin::EigenRowMatrixXd& be,
+             const dolfin::mesh::Cell& cell0,
+             const dolfin::mesh::Cell& cell1)
+            -> void {
+      auto dmap0 = dofmap->cell_dofs(cell0.index());
+      auto dmap1 = dofmap->cell_dofs(cell1.index());
+      const std::size_t macro_dmap_size = dmap0.size() + dmap1.size();
 
-    if (use_interior_facet_domains)
-      interior_facet_integral = L.integrals().interior_facet_integral((*interior_facet_domains)[facet]);
+      // FIXME: Can this be replaced with a Ref or Map somehow?
+      Eigen::Array<dolfin::la_index_t, Eigen::Dynamic, 1> macro_dofs(macro_dmap_size);
+      macro_dofs << dmap0, dmap1;
+      b.add_local(be.data(), macro_dmap_size, macro_dofs.data());
+    };
 
-    if (!interior_facet_integral)
-      continue;
-
-    assert(facet.num_entities(tdim) == 2);
-    auto cell_index_plus = facet.entities(tdim)[0];
-    auto cell_index_minus = facet.entities(tdim)[1];
-
-    if (use_cell_domains and (*cell_domains)[cell_index_plus] < (*cell_domains)[cell_index_minus])
-      std::swap(cell_index_plus, cell_index_minus);
-
-    // The convention '+' = 0, '-' = 1 is from ffc
-    const mesh::Cell cell0(mesh, cell_index_plus);
-    const mesh::Cell cell1(mesh, cell_index_minus);
-
-    // Get local index of facet with respect to each cell
-    std::size_t local_facet0 = cell0.index(facet);
-    std::size_t local_facet1 = cell1.index(facet);
-
-    // Update to current pair of cells
-    neighbour_coordinate_dofs[0].resize(cell0.num_vertices(), gdim);
-    cell0.get_coordinate_dofs(neighbour_coordinate_dofs[0]);
-
-    neighbour_coordinate_dofs[1].resize(cell1.num_vertices(), gdim);
-    cell1.get_coordinate_dofs(neighbour_coordinate_dofs[1]);
-
-    ufc.update(cell0, neighbour_coordinate_dofs[0],
-               cell1, neighbour_coordinate_dofs[1],
-               interior_facet_integral->enabled_coefficients);
-
-    // Get dof maps for cells
-    auto dmap0 = dofmap->cell_dofs(cell0.index());
-    auto dmap1 = dofmap->cell_dofs(cell1.index());
-    const std::size_t macro_dmap_size = dmap0.size() + dmap1.size();
-
-    // Prepare for assembly
-    be.resize(macro_dmap_size);
-    be.setZero();
-
-    // TODO: sort out the orientation
-    interior_facet_integral->tabulate_tensor(be.data(), ufc.macro_w(),
-                                             neighbour_coordinate_dofs[0].data(),
-                                             neighbour_coordinate_dofs[1].data(),
-                                             local_facet0, local_facet1,
-                                             1, 1);
-
-    if (cell0.is_ghost() != cell1.is_ghost())
-    {
-      const std::size_t ghost_rank = cell0.is_ghost() ? cell0.owner() : cell1.owner();
-      assert(mpi_rank != ghost_rank);
-      if (ghost_rank < mpi_rank)
-        continue;
-    }
-
-    // FIXME: Can this be replaced with a Ref or Map somehow?
-    Eigen::Array<dolfin::la_index_t, Eigen::Dynamic, 1> macro_dofs(macro_dmap_size);
-    macro_dofs << dmap0, dmap1;
-    b.add_local(be.data(), macro_dmap_size, macro_dofs.data());
+    assemble_over_interior_facets(L, init_element_vector, add_local_vector_to_global);
   }
 
   // FIXME: Put this elsewhere?
@@ -844,82 +717,15 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
   }
 
   // Interior facet assembly
-  // Sanity check of ghost mode (proper check in AssemblerBase::check)
-  assert(mesh.get_ghost_mode() == "shared_vertex"
-         or mesh.get_ghost_mode() == "shared_facet"
-         or MPI::size(mesh.mpi_comm()) == 1);
-
-  mesh.init(tdim - 1);
-  mesh.init(tdim - 1, tdim);
-
-  auto interior_facet_integral = M.integrals().interior_facet_integral();
-
-  // Check whether facet integral is domain dependent
-  auto interior_facet_domains = M.interior_facet_domains();
-  auto use_interior_facet_domains = interior_facet_domains && interior_facet_domains->size() > 0;
-
-  std::vector<EigenRowArrayXXd, Eigen::aligned_allocator<EigenRowArrayXXd>> neighbour_coordinate_dofs(2);
-
-  const std::size_t mpi_rank = MPI::rank(mesh.mpi_comm());
-
-  for (const auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  if (M.integrals().num_interior_facet_integrals() > 0)
   {
-    if (facet.exterior())
-      continue;
+    const auto init_scalar = [](dolfin::EigenRowMatrixXd& Ae) -> void { Ae.resize(1, 1); };
+    const auto add_scalar_to_global_scalar = [&m]
+            (dolfin::EigenRowMatrixXd& Ae,
+             const dolfin::mesh::Cell& cell0, const dolfin::mesh::Cell& cell1)
+            -> void { m.add(Ae.data()[0]); };
 
-    assert(!facet.is_ghost());
-
-    if (use_interior_facet_domains)
-      interior_facet_integral = M.integrals().interior_facet_integral((*interior_facet_domains)[facet]);
-
-    if (!interior_facet_integral)
-      continue;
-
-    assert(facet.num_entities(tdim) == 2);
-    auto cell_index_plus = facet.entities(tdim)[0];
-    auto cell_index_minus = facet.entities(tdim)[1];
-
-    if (use_cell_domains and (*cell_domains)[cell_index_plus] < (*cell_domains)[cell_index_minus])
-      std::swap(cell_index_plus, cell_index_minus);
-
-    // The convention '+' = 0, '-' = 1 is from ffc
-    const mesh::Cell cell0(mesh, cell_index_plus);
-    const mesh::Cell cell1(mesh, cell_index_minus);
-
-    // Get local index of facet with respect to each cell
-    std::size_t local_facet0 = cell0.index(facet);
-    std::size_t local_facet1 = cell1.index(facet);
-
-    // Update to current pair of cells
-    neighbour_coordinate_dofs[0].resize(cell0.num_vertices(), gdim);
-    cell0.get_coordinate_dofs(neighbour_coordinate_dofs[0]);
-
-    neighbour_coordinate_dofs[1].resize(cell1.num_vertices(), gdim);
-    cell1.get_coordinate_dofs(neighbour_coordinate_dofs[1]);
-
-    ufc.update(cell0, neighbour_coordinate_dofs[0],
-               cell1, neighbour_coordinate_dofs[1],
-               interior_facet_integral->enabled_coefficients);
-
-    // Prepare for assembly
-    me.setZero();
-
-    // TODO: sort out the orientation
-    interior_facet_integral->tabulate_tensor(me.data(), ufc.macro_w(),
-                                             neighbour_coordinate_dofs[0].data(),
-                                             neighbour_coordinate_dofs[1].data(),
-                                             local_facet0, local_facet1,
-                                             1, 1);
-
-    if (cell0.is_ghost() != cell1.is_ghost())
-    {
-      const std::size_t ghost_rank = cell0.is_ghost() ? cell0.owner() : cell1.owner();
-      assert(mpi_rank != ghost_rank);
-      if (ghost_rank < mpi_rank)
-        continue;
-    }
-
-    m.add(me.data()[0]);
+    assemble_over_interior_facets(M, init_scalar, add_scalar_to_global_scalar);
   }
 
   // FIXME: Put this elsewhere?
@@ -1209,6 +1015,108 @@ void Assembler::assemble_over_exterior_facets(
     // TODO: the cell orientation
     exterior_facet_integral->tabulate_tensor(Ae.data(), ufc.w(), coordinate_dofs.data(), local_facet, 1);
     insert_element_to_global_tensor(Ae, mesh_cell);
+  }
+}
+//-----------------------------------------------------------------------------
+void Assembler::assemble_over_interior_facets(
+        const Form &form,
+        const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
+        const std::function<void(EigenRowMatrixXd& Ae,
+                                 const mesh::Cell& cell0,
+                                 const mesh::Cell& cell1)>& insert_element_to_global_tensor)
+{
+  assert(form.mesh());
+  const mesh::Mesh& mesh = *form.mesh();
+
+  // Create data structures for local assembly data
+  UFC ufc(form);
+
+  const std::size_t gdim = mesh.geometry().dim();
+  const std::size_t tdim = mesh.topology().dim();
+
+  // Interior facet assembly
+  mesh.init(tdim - 1);
+  mesh.init(tdim - 1, tdim);
+
+  // Get interior facet integral
+  auto interior_facet_integral = form.integrals().interior_facet_integral();
+
+  // Check whether facet integral is domain dependent
+  auto interior_facet_domains = form.interior_facet_domains();
+  auto use_interior_facet_domains = interior_facet_domains && interior_facet_domains->size() > 0;
+
+  // Check whether integral is domain-dependent
+  auto cell_domains = form.cell_domains();
+  bool use_cell_domains = cell_domains && cell_domains->size() > 0;
+
+  // Element tensor
+  EigenRowMatrixXd Ae;
+  initialise_element_tensor(Ae);
+
+  // DoF coords
+  std::vector<EigenRowArrayXXd, Eigen::aligned_allocator<EigenRowArrayXXd>> neighbour_coordinate_dofs(2);
+
+  const std::size_t mpi_rank = MPI::rank(mesh.mpi_comm());
+
+  for (const auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  {
+    if (facet.exterior())
+      continue;
+
+    assert(!facet.is_ghost());
+
+    if (use_interior_facet_domains)
+      interior_facet_integral = form.integrals().interior_facet_integral((*interior_facet_domains)[facet]);
+
+    if (!interior_facet_integral)
+      continue;
+
+    assert(facet.num_entities(tdim) == 2);
+    auto cell_index_plus = facet.entities(tdim)[0];
+    auto cell_index_minus = facet.entities(tdim)[1];
+
+    if (use_cell_domains and (*cell_domains)[cell_index_plus] < (*cell_domains)[cell_index_minus])
+      std::swap(cell_index_plus, cell_index_minus);
+
+    // The convention '+' = 0, '-' = 1 is from ffc
+    const mesh::Cell cell0(mesh, cell_index_plus);
+    const mesh::Cell cell1(mesh, cell_index_minus);
+
+    // Get local index of facet with respect to each cell
+    std::size_t local_facet0 = cell0.index(facet);
+    std::size_t local_facet1 = cell1.index(facet);
+
+    // Update to current pair of cells
+    neighbour_coordinate_dofs[0].resize(cell0.num_vertices(), gdim);
+    cell0.get_coordinate_dofs(neighbour_coordinate_dofs[0]);
+
+    neighbour_coordinate_dofs[1].resize(cell1.num_vertices(), gdim);
+    cell1.get_coordinate_dofs(neighbour_coordinate_dofs[1]);
+
+    ufc.update(cell0, neighbour_coordinate_dofs[0],
+               cell1, neighbour_coordinate_dofs[1],
+               interior_facet_integral->enabled_coefficients);
+
+    // Prepare for assembly
+    Ae.setZero();
+
+    // TODO: sort out the orientation
+    interior_facet_integral->tabulate_tensor(Ae.data(), ufc.macro_w(),
+                                             neighbour_coordinate_dofs[0].data(),
+                                             neighbour_coordinate_dofs[1].data(),
+                                             local_facet0, local_facet1,
+                                             1, 1);
+
+    // FIXME: Should this be left up to the user (ie in insert_element_to_global_tensor)?
+    if (cell0.is_ghost() != cell1.is_ghost())
+    {
+      const std::size_t ghost_rank = cell0.is_ghost() ? cell0.owner() : cell1.owner();
+      assert(mpi_rank != ghost_rank);
+      if (ghost_rank < mpi_rank)
+        continue;
+    }
+
+    insert_element_to_global_tensor(Ae, cell0, cell1);
   }
 }
 //-----------------------------------------------------------------------------

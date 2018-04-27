@@ -94,6 +94,14 @@ private:
           const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
           const std::function<void(EigenRowMatrixXd& Ae, const mesh::Cell& cell)>& insert_element_to_global_tensor);
 
+  // Iterate over interior facets and assemble
+  static void assemble_over_interior_facets(
+          const Form &form,
+          const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
+          const std::function<void(EigenRowMatrixXd& Ae,
+                                   const mesh::Cell& cell0,
+                                   const mesh::Cell& cell1)>& insert_element_to_global_tensor);
+
   // Bilinear and linear forms
   std::vector<std::vector<std::shared_ptr<const Form>>> _a;
   std::vector<std::shared_ptr<const Form>> _l;
