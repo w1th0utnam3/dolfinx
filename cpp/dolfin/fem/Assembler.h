@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <dolfin/la/Scalar.h>
+#include <dolfin/common/types.h>
 
 namespace dolfin
 {
@@ -24,6 +25,7 @@ class PETScVector;
 namespace mesh
 {
 class Mesh;
+class MeshEntity;
 }
 
 namespace fem
@@ -78,6 +80,11 @@ private:
   // Set bcs (set entries of b to be equal to boundary value)
   static void set_bc(la::PETScVector& b, const Form& L,
                      std::vector<std::shared_ptr<const DirichletBC>> bcs);
+
+  // Iterate over cells and assemble
+  static void assemble_over_cells(const Form &form,
+                                  const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
+                                  const std::function<void(EigenRowMatrixXd& Ae, mesh::MeshEntity& cell)>& insert_element_to_global_tensor);
 
   // Bilinear and linear forms
   std::vector<std::vector<std::shared_ptr<const Form>>> _a;
