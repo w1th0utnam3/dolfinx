@@ -461,6 +461,7 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
   auto cell_domains = a.cell_domains();
   bool use_cell_domains = cell_domains && cell_domains->size() > 0;
 
+  // Cell assembly
   if (a.integrals().num_cell_integrals() > 0)
   {
     // FIXME: This will not be valid if num_element_dofs can vary by cell in the future
@@ -469,7 +470,7 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
                                 dofmaps[1]->num_element_dofs(0)); };
 
     const auto add_local_matrix_to_global = [&A, &dofmaps, &boundary_values, &apply_bc_to_local_matrix]
-            (dolfin::EigenRowMatrixXd& Ae, dolfin::mesh::MeshEntity& cell)
+            (dolfin::EigenRowMatrixXd& Ae, const dolfin::mesh::Cell& cell)
             -> void {
       const auto dmap0 = dofmaps[0]->cell_dofs(cell.index());
       const auto dmap1 = dofmaps[1]->cell_dofs(cell.index());
@@ -483,59 +484,27 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
     assemble_over_cells(a, init_element_vector, add_local_matrix_to_global);
   }
 
-
+  // Exterior facet assembly
   if (a.integrals().num_exterior_facet_integrals() > 0)
   {
-    // Exterior facet assembly
-    mesh.init(tdim - 1);
-    mesh.init(tdim - 1, tdim);
+    // FIXME: This will not be valid if num_element_dofs can vary by cell in the future
+    const auto init_element_vector = [&dofmaps](dolfin::EigenRowMatrixXd& Ae)
+            -> void { Ae.resize(dofmaps[0]->num_element_dofs(0),
+                                dofmaps[1]->num_element_dofs(0)); };
 
-    // Get exterior facet integral
-    auto exterior_facet_integral = a.integrals().exterior_facet_integral();
-
-    // Check whether facet integral is domain dependent
-    auto exterior_facet_domains = a.exterior_facet_domains();
-    auto use_exterior_facet_domains = exterior_facet_domains && exterior_facet_domains->size() > 0;
-
-    // Iterate over exterior facets
-    for (const auto &facet : mesh::MeshRange<mesh::Facet>(mesh)) {
-      if (!facet.exterior())
-        continue;
-
-      if (use_exterior_facet_domains)
-        exterior_facet_integral = a.integrals().exterior_facet_integral((*exterior_facet_domains)[facet]);
-
-      if (!exterior_facet_integral)
-        continue;
-
-      assert(facet.num_entities(tdim) == 1);
-      const mesh::Cell mesh_cell(mesh, facet.entities(tdim)[0]);
-
-      assert(!mesh_cell.is_ghost());
-      const std::size_t local_facet = mesh_cell.index(facet);
-
-      coordinate_dofs.resize(mesh_cell.num_vertices(), gdim);
-      mesh_cell.get_coordinate_dofs(coordinate_dofs);
-
-      ufc.update(mesh_cell, coordinate_dofs, exterior_facet_integral->enabled_coefficients);
-
-      // Get dof maps for cell
-      auto dmap0 = dofmaps[0]->cell_dofs(mesh_cell.index());
-      auto dmap1 = dofmaps[1]->cell_dofs(mesh_cell.index());
-
-      // Size data structure for assembly
-      Ae.resize(dmap0.size(), dmap1.size());
-      Ae.setZero();
-
-      // TODO: the cell orientation
-      exterior_facet_integral->tabulate_tensor(Ae.data(), ufc.w(), coordinate_dofs.data(), local_facet, 1);
+    const auto add_local_matrix_to_global = [&A, &dofmaps, &boundary_values, &apply_bc_to_local_matrix]
+            (dolfin::EigenRowMatrixXd& Ae, const dolfin::mesh::Cell& cell)
+            -> void {
+      const auto dmap0 = dofmaps[0]->cell_dofs(cell.index());
+      const auto dmap1 = dofmaps[1]->cell_dofs(cell.index());
 
       apply_bc_to_local_matrix(Ae, boundary_values, dmap0, dmap1);
 
-      // Add to matrix
       A.add_local(Ae.data(), dmap0.size(), dmap0.data(), dmap1.size(),
                   dmap1.data());
-    }
+    };
+
+    assemble_over_exterior_facets(a, init_element_vector, add_local_matrix_to_global);
   }
 
 
@@ -695,6 +664,7 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
   auto cell_domains = L.cell_domains();
   bool use_cell_domains = cell_domains && cell_domains->size() > 0;
 
+  // Assemble cells
   if (L.integrals().num_cell_integrals() > 0)
   {
     // FIXME: This will not be valid if num_element_dofs can vary by cell in the future
@@ -702,7 +672,7 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
             -> void { be.resize(dofmap->num_element_dofs(0), 1); };
 
     const auto add_local_vector_to_global = [&b, &dofmap]
-            (dolfin::EigenRowMatrixXd& be, dolfin::mesh::MeshEntity& cell)
+            (dolfin::EigenRowMatrixXd& be, const dolfin::mesh::Cell& cell)
             -> void {
       const auto dmap = dofmap->cell_dofs(cell.index());
       b.add_local(be.data(), dmap.size(), dmap.data());
@@ -711,52 +681,21 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
     assemble_over_cells(L, init_element_vector, add_local_vector_to_global);
   }
 
-  // Exterior facet assembly
-  mesh.init(tdim - 1);
-  mesh.init(tdim - 1, tdim);
-
-  // Get exterior facet integral
-  auto exterior_facet_integral = L.integrals().exterior_facet_integral();
-
-  // Check whether facet integral is domain dependent
-  auto exterior_facet_domains = L.exterior_facet_domains();
-  auto use_exterior_facet_domains = exterior_facet_domains && exterior_facet_domains->size() > 0;
-
-  // Iterate over exterior facets
-  for (const auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  // Assemble exterior facets
+  if (L.integrals().num_exterior_facet_integrals() > 0)
   {
-    if (!facet.exterior())
-      continue;
+    // FIXME: This will not be valid if num_element_dofs can vary by cell in the future
+    const auto init_element_vector = [&dofmap](dolfin::EigenRowMatrixXd& be)
+            -> void { be.resize(dofmap->num_element_dofs(0), 1); };
 
-    if (use_exterior_facet_domains)
-      exterior_facet_integral = L.integrals().exterior_facet_integral((*exterior_facet_domains)[facet]);
+    const auto add_local_vector_to_global = [&b, &dofmap]
+            (dolfin::EigenRowMatrixXd& be, const dolfin::mesh::Cell& cell)
+            -> void {
+      const auto dmap = dofmap->cell_dofs(cell.index());
+      b.add_local(be.data(), dmap.size(), dmap.data());
+    };
 
-    if (!exterior_facet_integral)
-      continue;
-
-    assert(facet.num_entities(tdim) == 1);
-    const mesh::Cell mesh_cell(mesh, facet.entities(tdim)[0]);
-
-    // Get dof maps for cell
-    auto dmap = dofmap->cell_dofs(mesh_cell.index());
-
-    assert(!mesh_cell.is_ghost());
-    const std::size_t local_facet = mesh_cell.index(facet);
-
-    coordinate_dofs.resize(mesh_cell.num_vertices(), gdim);
-    mesh_cell.get_coordinate_dofs(coordinate_dofs);
-
-    ufc.update(mesh_cell, coordinate_dofs, exterior_facet_integral->enabled_coefficients);
-
-    // Size data structure for assembly
-    be.resize(dmap.size());
-    be.setZero();
-
-    // TODO: the cell orientation
-    exterior_facet_integral->tabulate_tensor(be.data(), ufc.w(), coordinate_dofs.data(), local_facet, 1);
-
-    // Add to vector
-    b.add_local(be.data(), dmap.size(), dmap.data());
+    assemble_over_exterior_facets(L, init_element_vector, add_local_vector_to_global);
   }
 
 
@@ -887,54 +826,22 @@ void Assembler::assemble(la::Scalar& m, const Form& M)
   {
     const auto init_scalar = [](dolfin::EigenRowMatrixXd& Ae) -> void { Ae.resize(1, 1); };
     const auto add_scalar_to_global_scalar = [&m]
-            (dolfin::EigenRowMatrixXd& Ae, dolfin::mesh::MeshEntity& cell)
+            (dolfin::EigenRowMatrixXd& Ae, const dolfin::mesh::Cell& cell)
             -> void { m.add(Ae.data()[0]); };
 
     assemble_over_cells(M, init_scalar, add_scalar_to_global_scalar);
   }
 
-  // Exterior facet assembly
-  mesh.init(tdim - 1);
-  mesh.init(tdim - 1, tdim);
-
-  // Get exterior facet integral
-  auto exterior_facet_integral = M.integrals().exterior_facet_integral();
-
-  // Check whether facet integral is domain dependent
-  auto exterior_facet_domains = M.exterior_facet_domains();
-  auto use_exterior_facet_domains = exterior_facet_domains && exterior_facet_domains->size() > 0;
-
   // Iterate over exterior facets
-  for (const auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  if (M.integrals().num_exterior_facet_integrals() > 0)
   {
-    if (!facet.exterior())
-      continue;
+    const auto init_scalar = [](dolfin::EigenRowMatrixXd& Ae) -> void { Ae.resize(1, 1); };
+    const auto add_scalar_to_global_scalar = [&m]
+            (dolfin::EigenRowMatrixXd& Ae, const dolfin::mesh::Cell& cell)
+            -> void { m.add(Ae.data()[0]); };
 
-    if (use_exterior_facet_domains)
-      exterior_facet_integral = M.integrals().exterior_facet_integral((*exterior_facet_domains)[facet]);
-
-    if (!exterior_facet_integral)
-      continue;
-
-    assert(facet.num_entities(tdim) == 1);
-    const mesh::Cell mesh_cell(mesh, facet.entities(tdim)[0]);
-
-    assert(!mesh_cell.is_ghost());
-    const std::size_t local_facet = mesh_cell.index(facet);
-
-    coordinate_dofs.resize(mesh_cell.num_vertices(), gdim);
-    mesh_cell.get_coordinate_dofs(coordinate_dofs);
-
-    ufc.update(mesh_cell, coordinate_dofs, exterior_facet_integral->enabled_coefficients);
-
-    me.setZero();
-
-    // TODO: the cell orientation
-    exterior_facet_integral->tabulate_tensor(me.data(), ufc.w(), coordinate_dofs.data(), local_facet, 1);
-
-    m.add(me.data()[0]);
+    assemble_over_exterior_facets(M, init_scalar, add_scalar_to_global_scalar);
   }
-
 
   // Interior facet assembly
   // Sanity check of ghost mode (proper check in AssemblerBase::check)
@@ -1181,9 +1088,10 @@ void Assembler::set_bc(la::PETScVector& b, const Form& L,
   b.apply();
 }
 //-----------------------------------------------------------------------------
-void Assembler::assemble_over_cells(const Form &form,
-                                    const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
-                                    const std::function<void(EigenRowMatrixXd& Ae, mesh::MeshEntity& cell)>& insert_element_to_global_tensor)
+void Assembler::assemble_over_cells(
+        const Form &form,
+        const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
+        const std::function<void(EigenRowMatrixXd& Ae, const mesh::Cell& cell)>& insert_element_to_global_tensor)
 {
   assert(form.mesh());
   const mesh::Mesh& mesh = *form.mesh();
@@ -1210,7 +1118,7 @@ void Assembler::assemble_over_cells(const Form &form,
   initialise_element_tensor(Ae);
 
   // Iterate over all cells
-  for (auto &cell : mesh::MeshRange<mesh::Cell>(mesh))
+  for (const auto& cell : mesh::MeshRange<mesh::Cell>(mesh))
   {
     // Get integral for sub domain (if any)
     if (use_cell_domains)
@@ -1237,6 +1145,70 @@ void Assembler::assemble_over_cells(const Form &form,
     cell_integral->tabulate_tensor(Ae.data(), ufc.w(), coordinate_dofs.data(),
                                    1);
     insert_element_to_global_tensor(Ae, cell);
+  }
+}
+//-----------------------------------------------------------------------------
+void Assembler::assemble_over_exterior_facets(
+        const Form &form,
+        const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
+        const std::function<void(EigenRowMatrixXd& Ae, const mesh::Cell& cell)>& insert_element_to_global_tensor)
+{
+  assert(form.mesh());
+  const mesh::Mesh& mesh = *form.mesh();
+
+  // Create data structures for local assembly data
+  UFC ufc(form);
+
+  const std::size_t gdim = mesh.geometry().dim();
+  const std::size_t tdim = mesh.topology().dim();
+
+  // Exterior facet assembly
+  mesh.init(tdim - 1);
+  mesh.init(tdim - 1, tdim);
+
+  // Get exterior facet integral
+  auto exterior_facet_integral = form.integrals().exterior_facet_integral();
+
+  // Check whether facet integral is domain dependent
+  auto exterior_facet_domains = form.exterior_facet_domains();
+  auto use_exterior_facet_domains = exterior_facet_domains && exterior_facet_domains->size() > 0;
+
+  // DoF coords
+  EigenRowArrayXXd coordinate_dofs;
+
+  // Element tensor
+  EigenRowMatrixXd Ae;
+  initialise_element_tensor(Ae);
+
+  // Iterate over exterior facets
+  for (const auto& facet : mesh::MeshRange<mesh::Facet>(mesh))
+  {
+    // We only care about the exterior
+    if (!facet.exterior())
+      continue;
+
+    if (use_exterior_facet_domains)
+      exterior_facet_integral = form.integrals().exterior_facet_integral((*exterior_facet_domains)[facet]);
+
+    if (!exterior_facet_integral)
+      continue;
+
+    assert(facet.num_entities(tdim) == 1);
+    const mesh::Cell mesh_cell(mesh, facet.entities(tdim)[0]);
+
+    assert(!mesh_cell.is_ghost());
+    const std::size_t local_facet = mesh_cell.index(facet);
+
+    coordinate_dofs.resize(mesh_cell.num_vertices(), gdim);
+    mesh_cell.get_coordinate_dofs(coordinate_dofs);
+
+    ufc.update(mesh_cell, coordinate_dofs, exterior_facet_integral->enabled_coefficients);
+
+    Ae.setZero();
+
+    // TODO: the cell orientation
+    exterior_facet_integral->tabulate_tensor(Ae.data(), ufc.w(), coordinate_dofs.data(), local_facet, 1);
+    insert_element_to_global_tensor(Ae, mesh_cell);
   }
 }
 //-----------------------------------------------------------------------------

@@ -26,6 +26,7 @@ namespace mesh
 {
 class Mesh;
 class MeshEntity;
+class Cell;
 }
 
 namespace fem
@@ -82,9 +83,16 @@ private:
                      std::vector<std::shared_ptr<const DirichletBC>> bcs);
 
   // Iterate over cells and assemble
-  static void assemble_over_cells(const Form &form,
-                                  const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
-                                  const std::function<void(EigenRowMatrixXd& Ae, mesh::MeshEntity& cell)>& insert_element_to_global_tensor);
+  static void assemble_over_cells(
+          const Form &form,
+          const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
+          const std::function<void(EigenRowMatrixXd& Ae, const mesh::Cell& cell)>& insert_element_to_global_tensor);
+
+  // Iterate over exterior facets and assemble
+  static void assemble_over_exterior_facets(
+          const Form &form,
+          const std::function<void(EigenRowMatrixXd& Ae)>& initialise_element_tensor,
+          const std::function<void(EigenRowMatrixXd& Ae, const mesh::Cell& cell)>& insert_element_to_global_tensor);
 
   // Bilinear and linear forms
   std::vector<std::vector<std::shared_ptr<const Form>>> _a;
