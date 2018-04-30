@@ -438,65 +438,67 @@ def test_nonsquare_assembly():
 #     except:
 #         print("Cannot run this test without SciPy")
 #
-#
-# def test_ways_to_pass_mesh_to_assembler():
-#     mesh = UnitSquareMesh(MPI.comm_world, 16, 16)
-#
-#     # Geometry with mesh (ufl.Domain with mesh in domain data)
-#     x = SpatialCoordinate(mesh)
-#     n = FacetNormal(mesh)
-#
-#     # Geometry with just cell (no reference to mesh, for backwards
-#     # compatibility)
-#     x2 = SpatialCoordinate(mesh)
-#     n2 = FacetNormal(mesh)
-#
-#     # A function equal to x[0] for comparison
-#     V = FunctionSpace(mesh, "CG", 1)
-#     f = Function(V)
-#     f.interpolate(Expression("x[0]", degree=1))
-#
-#     # An expression equal to x[0], with different geometry info:
-#     e = Expression("x[0]", degree=1)  # nothing
-#     e2 = Expression("x[0]", cell=mesh.ufl_cell(), degree=1)  # cell
-#     e3 = Expression("x[0]", element=V.ufl_element())  # ufl element
-#     e4 = Expression("x[0]", domain=mesh, degree=1)  # mesh
-#
-#     # Provide mesh in measure:
-#     dx2 = Measure("dx", domain=mesh)
-#     assert round(1.0 - assemble(1*dx(mesh)), 7) == 0
-#     assert round(1.0 - assemble(Constant(1.0)*dx(mesh)), 7) == 0
-#     assert round(1.0 - assemble(Constant(1.0)*dx2), 7) == 0
-#
-#     # Try with cell argument to Constant as well:
-#     assert round(1.0 - assemble(Constant(1.0,
-#                                          cell=mesh.ufl_cell())*dx(mesh))) == 0
-#     assert round(1.0 - assemble(Constant(1.0, cell=mesh.ufl_cell())*dx2)) == 0
-#     assert round(1.0 - assemble(Constant(1.0,
-#                                          cell=mesh.ufl_cell())*dx(mesh))) == 0
-#     assert round(1.0 - assemble(Constant(1.0, cell=mesh.ufl_cell())*dx2)) == 0
-#
-#     # Geometric quantities with mesh in domain:
-#     assert round(0.5 - assemble(x[0]*dx), 7) == 0
-#     assert round(0.5 - assemble(x[0]*dx(mesh)), 7) == 0
-#
-#     # Geometric quantities without mesh in domain:
-#     assert round(0.5 - assemble(x2[0]*dx(mesh)), 7) == 0
-#
-#     # Functions with mesh in domain:
-#     assert round(0.5 - assemble(f*dx), 7) == 0
-#     assert round(0.5 - assemble(f*dx(mesh)), 7) == 0
-#
-#     # Expressions with and without mesh in domain:
-#     assert round(0.5 - assemble(e*dx(mesh)), 7) == 0
-#     assert round(0.5 - assemble(e2*dx(mesh)), 7) == 0
-#     assert round(0.5 - assemble(e3*dx(mesh)), 7) == 0
-#     assert round(0.5 - assemble(e4*dx), 7) == 0  # e4 has a domain with mesh reference
-#     assert round(0.5 - assemble(e4*dx(mesh)), 7) == 0
-#
-#     # Geometric quantities with mesh in domain:
-#     assert round(0.0 - assemble(n[0]*ds), 7) == 0
-#     assert round(0.0 - assemble(n[0]*ds(mesh)), 7) == 0
-#
-#     # Geometric quantities without mesh in domain:
-#     assert round(0.0 - assemble(n2[0]*ds(mesh)), 7) == 0
+
+def test_ways_to_pass_mesh_to_assembler():
+    mesh = dolfin.UnitSquareMesh(dolfin.MPI.comm_world, 16, 16)
+
+    # Geometry with mesh (ufl.Domain with mesh in domain data)
+    x = ufl.SpatialCoordinate(mesh)
+    n = ufl.FacetNormal(mesh)
+
+    # Geometry with just cell (no reference to mesh, for backwards
+    # compatibility)
+    x2 = ufl.SpatialCoordinate(mesh)
+    n2 = ufl.FacetNormal(mesh)
+
+    # A function equal to x[0] for comparison
+    V = dolfin.FunctionSpace(mesh, "CG", 1)
+    f = dolfin.Function(V)
+    f.interpolate(dolfin.Expression("x[0]", degree=1))
+
+    # An expression equal to x[0], with different geometry info:
+    e = dolfin.Expression("x[0]", degree=1)  # nothing
+    e2 = dolfin.Expression("x[0]", cell=mesh.ufl_cell(), degree=1)  # cell
+    e3 = dolfin.Expression("x[0]", element=V.ufl_element())  # ufl element
+    e4 = dolfin.Expression("x[0]", domain=mesh, degree=1)  # mesh
+
+    assemble_scalar = dolfin.fem.assembling.assemble_scalar
+
+    # Provide mesh in measure:
+    dx2 = ufl.Measure("dx", domain=mesh)
+    assert round(1.0 - assemble_scalar(1*dx(mesh)), 7) == 0
+    assert round(1.0 - assemble_scalar(dolfin.Constant(1.0)*dx(mesh)), 7) == 0
+    assert round(1.0 - assemble_scalar(dolfin.Constant(1.0)*dx2), 7) == 0
+
+    # Try with cell argument to Constant as well:
+    assert round(1.0 - assemble_scalar(dolfin.Constant(1.0,
+                                         cell=mesh.ufl_cell())*dx(mesh))) == 0
+    assert round(1.0 - assemble_scalar(dolfin.Constant(1.0, cell=mesh.ufl_cell())*dx2)) == 0
+    assert round(1.0 - assemble_scalar(dolfin.Constant(1.0,
+                                         cell=mesh.ufl_cell())*dx(mesh))) == 0
+    assert round(1.0 - assemble_scalar(dolfin.Constant(1.0, cell=mesh.ufl_cell())*dx2)) == 0
+
+    # Geometric quantities with mesh in domain:
+    assert round(0.5 - assemble_scalar(x[0]*dx), 7) == 0
+    assert round(0.5 - assemble_scalar(x[0]*dx(mesh)), 7) == 0
+
+    # Geometric quantities without mesh in domain:
+    assert round(0.5 - assemble_scalar(x2[0]*dx(mesh)), 7) == 0
+
+    # Functions with mesh in domain:
+    assert round(0.5 - assemble_scalar(f*dx), 7) == 0
+    assert round(0.5 - assemble_scalar(f*dx(mesh)), 7) == 0
+
+    # Expressions with and without mesh in domain:
+    assert round(0.5 - assemble_scalar(e*dx(mesh)), 7) == 0
+    assert round(0.5 - assemble_scalar(e2*dx(mesh)), 7) == 0
+    assert round(0.5 - assemble_scalar(e3*dx(mesh)), 7) == 0
+    assert round(0.5 - assemble_scalar(e4*dx), 7) == 0  # e4 has a domain with mesh reference
+    assert round(0.5 - assemble_scalar(e4*dx(mesh)), 7) == 0
+
+    # Geometric quantities with mesh in domain:
+    assert round(0.0 - assemble_scalar(n[0]*ds), 7) == 0
+    assert round(0.0 - assemble_scalar(n[0]*ds(mesh)), 7) == 0
+
+    # Geometric quantities without mesh in domain:
+    assert round(0.0 - assemble_scalar(n2[0]*ds(mesh)), 7) == 0
