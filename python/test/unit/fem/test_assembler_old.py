@@ -78,8 +78,7 @@ def test_cell_assembly():
     assert round(b.norm("l2") - b_l2_norm, 10) == 0
 
 
-@pytest.mark.xfail(condition=dolfin.MPI.size(dolfin.MPI.comm_world) > 0,
-                   reason="Ghost mode not yet working")
+@skip_in_parallel  # Ghost mode not working yet
 def test_facet_assembly():
     mesh = dolfin.UnitSquareMesh(dolfin.MPI.comm_world, 24, 24)
     V = dolfin.FunctionSpace(mesh, "DG", 1)
@@ -162,8 +161,7 @@ def test_functional_assembly(mesh_factory, facet_area):
     assert round(dolfin.fem.assembling.assemble_scalar(M1) - facet_area, 7) == 0
 
 
-@pytest.mark.xfail(condition=dolfin.MPI.size(dolfin.MPI.comm_world) > 0,
-                   reason="Ghost mode not yet working")
+@skip_in_parallel  # Ghost mode not working yet
 @pytest.mark.parametrize('mesh_factory, args', [(dolfin.generation.UnitSquareMesh, (dolfin.MPI.comm_world, 4, 4)),
                                           (dolfin.generation.UnitCubeMesh, (dolfin.MPI.comm_world, 2, 2, 2)),
                                           (dolfin.generation.UnitSquareMesh, (dolfin.MPI.comm_world, 4, 4, dolfin.CellType.Type.quadrilateral)),
