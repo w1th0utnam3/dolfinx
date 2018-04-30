@@ -64,17 +64,6 @@ void Assembler::assemble(la::PETScMatrix& A, BlockType block_type)
 
   if (A.empty())
   {
-    // std::cout << "Init matrix" << std::endl;
-
-    // Initialise matrix if empty
-
-    // Build array of pointers to forms
-    std::vector<std::vector<const Form*>> forms(
-        _a.size(), std::vector<const Form*>(_a[0].size()));
-    for (std::size_t i = 0; i < _a.size(); ++i)
-      for (std::size_t j = 0; j < _a[i].size(); ++j)
-        forms[i][j] = _a[i][j].get();
-
     // Initialise matrix if empty
 
     // Build array of pointers to forms
