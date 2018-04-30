@@ -199,13 +199,16 @@ void fem(py::module& m)
           py::arg("mpi_comm"), py::arg("mesh"), py::arg("dofmaps"),
           py::arg("cells"), py::arg("interior_facets"),
           py::arg("exterior_facets"), py::arg("vertices"), py::arg("diagonal"),
-          py::arg("finalize") = true, "Create SparsityPattern from pair of dofmaps");
+          py::arg("finalize") = true,
+          "Create SparsityPattern from pair of dofmaps");
 
   // dolfin::fem::DirichletBC
   py::class_<dolfin::fem::DirichletBC,
              std::shared_ptr<dolfin::fem::DirichletBC>,
              dolfin::common::Variable>
-      dirichletbc(m, "DirichletBC", "Object for representing Dirichlet (essential) boundary conditions");
+      dirichletbc(
+          m, "DirichletBC",
+          "Object for representing Dirichlet (essential) boundary conditions");
 
   // dolfin::fem::DirichletBC  enum
   py::enum_<dolfin::fem::DirichletBC::Method>(dirichletbc, "Method")

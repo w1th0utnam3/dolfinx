@@ -64,6 +64,17 @@ void Assembler::assemble(la::PETScMatrix& A, BlockType block_type)
 
   if (A.empty())
   {
+    // std::cout << "Init matrix" << std::endl;
+
+    // Initialise matrix if empty
+
+    // Build array of pointers to forms
+    std::vector<std::vector<const Form*>> forms(
+        _a.size(), std::vector<const Form*>(_a[0].size()));
+    for (std::size_t i = 0; i < _a.size(); ++i)
+      for (std::size_t j = 0; j < _a[i].size(); ++j)
+        forms[i][j] = _a[i][j].get();
+
     // Initialise matrix if empty
 
     // Build array of pointers to forms
@@ -252,9 +263,16 @@ void Assembler::assemble(la::PETScVector& b, BlockType block_type)
 
     // Initialise vector
     if (block_type == BlockType::nested)
+    {
+      // std::cout << "Init block vector (nested)" << std::endl;
       fem::init_nest(b, forms);
+      // std::cout << "End init block vector (nested)" << std::endl;
+    }
     else if (block_vector and block_type == BlockType::monolithic)
+    {
+      // std::cout << "Init block vector (non-nested)" << std::endl;
       fem::init_monolithic(b, forms);
+    }
     else
       init(b, *_l[0]);
   }
@@ -262,7 +280,7 @@ void Assembler::assemble(la::PETScVector& b, BlockType block_type)
   // Get vector type
   VecType vec_type;
   VecGetType(b.vec(), &vec_type);
-  const bool is_vecnest = strcmp(vec_type, VECNEST) == 0;
+  bool is_vecnest = strcmp(vec_type, VECNEST) == 0 ? true : false;
 
   if (is_vecnest)
   {
@@ -274,6 +292,7 @@ void Assembler::assemble(la::PETScVector& b, BlockType block_type)
       if (_l[i])
       {
         la::PETScVector vec(sub_b);
+        // std::cout << "Assemble RHS (nest)" << std::endl;
         this->assemble(vec, *_l[i]);
       }
       else
@@ -285,6 +304,7 @@ void Assembler::assemble(la::PETScVector& b, BlockType block_type)
   }
   else if (block_vector)
   {
+    // std::cout << "Assembling block vector (non-nested)" << std::endl;
     std::int64_t offset = 0;
     for (std::size_t i = 0; i < _l.size(); ++i)
     {
@@ -301,7 +321,9 @@ void Assembler::assemble(la::PETScVector& b, BlockType block_type)
                       index.data(), PETSC_COPY_VALUES, &is);
 
         Vec sub_b;
+        // std::cout << "*** get subvector" << std::endl;
         VecGetSubVector(b.vec(), is, &sub_b);
+        // std::cout << "*** end get subvector" << std::endl;
         la::PETScVector vec(sub_b);
 
         // FIXME: Does it pick up the block size?

@@ -94,7 +94,7 @@ def test_matrix_assembly_bc():
 
 @skip_in_parallel
 def test_matrix_assembly_block():
-    mesh = dolfin.generation.UnitSquareMesh(dolfin.MPI.comm_world, 2, 2)
+    mesh = dolfin.generation.UnitSquareMesh(dolfin.MPI.comm_world, 2, 1)
 
     V0 = dolfin.function.functionspace.FunctionSpace(mesh, "Lagrange", 1)
     V1 = dolfin.function.functionspace.FunctionSpace(mesh, "Lagrange", 1)
