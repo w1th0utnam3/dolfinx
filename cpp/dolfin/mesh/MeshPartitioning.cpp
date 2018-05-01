@@ -834,9 +834,10 @@ MeshPartitioning::distribute_points(
     }
 
     const std::size_t local_size = (local_index - local_index_0) * gdim;
-    MPI_Put(send_coord_data.data() + local_index_0 * gdim, local_size,
-            MPI_DOUBLE, p, remote_offsets[p] * gdim, local_size, MPI_DOUBLE,
-            win);
+    if (local_size > 0)
+      MPI_Put(send_coord_data.data() + local_index_0 * gdim, local_size,
+              MPI_DOUBLE, p, remote_offsets[p] * gdim, local_size, MPI_DOUBLE,
+              win);
   }
 
   // Meanwhile, redistribute received_point_indices as point sharing
@@ -872,6 +873,8 @@ MeshPartitioning::build_shared_points(
 {
   log::log(PROGRESS,
            "Build shared points during distributed mesh construction");
+
+  std::set<int> neighbour_processes;
 
   const std::uint32_t mpi_size = MPI::size(mpi_comm);
 
@@ -957,11 +960,25 @@ MeshPartitioning::build_shared_points(
       const std::size_t num_sharing = *q;
       const std::uint32_t local_index = local_index_p[*(q + 1)];
       std::set<std::uint32_t> sharing_processes(q + 2, q + 2 + num_sharing);
-
+      neighbour_processes.insert(sharing_processes.begin(),
+                                 sharing_processes.end());
       auto it = shared_points_local.insert({local_index, sharing_processes});
       assert(it.second);
     }
   }
+
+  std::stringstream s;
+  s << "Neighbours of " << MPI::rank(mpi_comm) << " = ";
+  for (auto& q : neighbour_processes)
+    s << q << " ";
+  s << std::endl;
+  std::cout << s.str();
+
+  std::vector<int> np(neighbour_processes.begin(), neighbour_processes.end());
+  MPI_Comm new_comm;
+  MPI_Dist_graph_create_adjacent(
+      mpi_comm, np.size(), np.data(), (const int*)MPI_UNWEIGHTED, np.size(),
+      np.data(), (const int*)MPI_UNWEIGHTED, MPI_INFO_NULL, 0, &new_comm);
 
   return shared_points_local;
 }
