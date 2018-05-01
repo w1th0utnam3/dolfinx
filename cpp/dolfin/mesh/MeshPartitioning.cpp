@@ -48,6 +48,49 @@ mesh::Mesh MeshPartitioning::build_distributed_mesh(
   // Compute the cell partition
   PartitionData mp = partition_cells(comm, type, cells, partitioner);
 
+  // Calculate neighbours
+  std::map<std::uint32_t, std::set<std::uint32_t>> proc_neighbours;
+  for (unsigned int i = 0; i < mp.size(); ++i)
+  {
+    const std::uint32_t np = mp.num_procs(i);
+    if (np > 1)
+    {
+      for (std::uint32_t j = 0; j < np; ++j)
+      {
+        std::uint32_t pj = mp.procs(i)[j];
+        const auto it = proc_neighbours.insert({pj, {}});
+        for (std::uint32_t k = 0; k < np; ++k)
+          if (j != k)
+          {
+            std::uint32_t pk = mp.procs(i)[k];
+            it.first->second.insert(pk);
+          }
+      }
+    }
+  }
+
+  std::vector<int> sources;
+  std::vector<int> degrees;
+  std::vector<int> destinations;
+  for (auto& q : proc_neighbours)
+  {
+    sources.push_back(q.first);
+    degrees.push_back(q.second.size());
+    destinations.insert(destinations.end(), q.second.begin(), q.second.end());
+  }
+
+  std::stringstream s;
+  s << "Neighbours on " << MPI::rank(comm) << " = ";
+  for (unsigned int i = 0; i < sources.size(); ++i)
+    s << sources[i] << "=" << degrees[i] << " ";
+  s << std::endl;
+  std::cout << s.str();
+
+  MPI_Comm new_comm;
+  MPI_Dist_graph_create(comm, sources.size(), sources.data(), degrees.data(),
+                        destinations.data(), (const int*)MPI_UNWEIGHTED,
+                        MPI_INFO_NULL, 0, &new_comm);
+
   // Check that we have some ghost information.
   int all_ghosts = MPI::sum(comm, mp.num_ghosts());
   if (all_ghosts == 0 && ghost_mode != "none")
@@ -57,8 +100,8 @@ mesh::Mesh MeshPartitioning::build_distributed_mesh(
   }
 
   // Build mesh from local mesh data and provided cell partition
-  mesh::Mesh mesh
-      = build(comm, type, cells, points, global_cell_indices, ghost_mode, mp);
+  mesh::Mesh mesh = build(new_comm, type, cells, points, global_cell_indices,
+                          ghost_mode, mp);
 
   // FIXME: This should be done at Mesh construction
   // Store used ghost mode
@@ -219,9 +262,9 @@ MeshPartitioning::reorder_cells_gps(
     const Eigen::Ref<const EigenRowArrayXXi64>& global_cell_vertices,
     const std::vector<std::int64_t>& global_cell_indices)
 {
-  std::cout
-      << "WARNING: this function is probably broken. It needs careful testing."
-      << std::endl;
+  std::cout << "WARNING: this function is probably broken. It needs careful "
+               "testing."
+            << std::endl;
 
   log::log(PROGRESS, "Re-order cells during distributed mesh construction");
 
@@ -347,7 +390,8 @@ MeshPartitioning::reorder_cells_gps(
 //   // collating and sending back out...
 //   std::vector<std::vector<std::int64_t>> send_vertcells(mpi_size);
 //   std::vector<std::vector<std::int64_t>> recv_vertcells(mpi_size);
-//   for (auto vc_it = sh_vert_to_cell.begin(); vc_it != sh_vert_to_cell.end();
+//   for (auto vc_it = sh_vert_to_cell.begin(); vc_it !=
+//   sh_vert_to_cell.end();
 //        ++vc_it)
 //   {
 //     const int dest
@@ -379,8 +423,8 @@ MeshPartitioning::reorder_cells_gps(
 //   for (int i = 0; i < mpi_size; ++i)
 //   {
 //     const std::vector<std::int64_t>& recv_i = recv_vertcells[i];
-//     for (auto q = recv_i.begin(); q != recv_i.end(); q += num_cell_vertices +
-//     1)
+//     for (auto q = recv_i.begin(); q != recv_i.end(); q += num_cell_vertices
+//     + 1)
 //     {
 //       const std::size_t vertex_index = *(q + 1);
 //       std::vector<std::int64_t> cell_set = {i};
@@ -407,7 +451,8 @@ MeshPartitioning::reorder_cells_gps(
 //     for (auto q = p->second.begin(); q != p->second.end();
 //          q += (num_cell_vertices + 2))
 //     {
-//       send_vertcells[*q].insert(send_vertcells[*q].end(), p->second.begin(),
+//       send_vertcells[*q].insert(send_vertcells[*q].end(),
+//       p->second.begin(),
 //                                 p->second.end());
 //     }
 //   }
@@ -874,8 +919,6 @@ MeshPartitioning::build_shared_points(
   log::log(PROGRESS,
            "Build shared points during distributed mesh construction");
 
-  std::set<int> neighbour_processes;
-
   const std::uint32_t mpi_size = MPI::size(mpi_comm);
 
   // Count number sharing each local point
@@ -960,25 +1003,10 @@ MeshPartitioning::build_shared_points(
       const std::size_t num_sharing = *q;
       const std::uint32_t local_index = local_index_p[*(q + 1)];
       std::set<std::uint32_t> sharing_processes(q + 2, q + 2 + num_sharing);
-      neighbour_processes.insert(sharing_processes.begin(),
-                                 sharing_processes.end());
       auto it = shared_points_local.insert({local_index, sharing_processes});
       assert(it.second);
     }
   }
-
-  std::stringstream s;
-  s << "Neighbours of " << MPI::rank(mpi_comm) << " = ";
-  for (auto& q : neighbour_processes)
-    s << q << " ";
-  s << std::endl;
-  std::cout << s.str();
-
-  std::vector<int> np(neighbour_processes.begin(), neighbour_processes.end());
-  MPI_Comm new_comm;
-  MPI_Dist_graph_create_adjacent(
-      mpi_comm, np.size(), np.data(), (const int*)MPI_UNWEIGHTED, np.size(),
-      np.data(), (const int*)MPI_UNWEIGHTED, MPI_INFO_NULL, 0, &new_comm);
 
   return shared_points_local;
 }
