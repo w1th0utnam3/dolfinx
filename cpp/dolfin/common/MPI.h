@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <numeric>
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <cassert>
 
 #ifdef HAS_MPI
 #define MPICH_IGNORE_CXX_SEEK 1
@@ -238,7 +238,7 @@ private:
   static void error_no_mpi(const char* where)
   {
     log::dolfin_error("MPI.h", where,
-                 "DOLFIN has been configured without MPI support");
+                      "DOLFIN has been configured without MPI support");
   }
 #endif
 
@@ -252,12 +252,11 @@ private:
   static MPI_Datatype mpi_type()
   {
     static_assert(dependent_false<T>::value, "Unknown MPI type");
-    log::dolfin_error("MPI.h", "perform MPI operation", "MPI data type unknown");
+    log::dolfin_error("MPI.h", "perform MPI operation",
+                      "MPI data type unknown");
     return MPI_CHAR;
   }
-#endif
 
-#ifdef HAS_MPI
   // Maps some MPI_Op values to string
   static std::map<MPI_Op, std::string> operation_map;
 #endif
@@ -306,69 +305,7 @@ inline MPI_Datatype MPI::mpi_type<long long>()
   return MPI_LONG_LONG;
 }
 #endif
-//---------------------------------------------------------------------------
-template <typename T, typename X>
-T dolfin::MPI::all_reduce(MPI_Comm comm, const T& value, X op)
-{
-#ifdef HAS_MPI
-  T out;
-  MPI_Allreduce(const_cast<T*>(&value), &out, 1, mpi_type<T>(), op, comm);
-  return out;
-#else
-  return value;
-#endif
-}
-//---------------------------------------------------------------------------
-template <typename T>
-T dolfin::MPI::max(MPI_Comm comm, const T& value)
-{
-#ifdef HAS_MPI
-  // Enforce cast to MPI_Op; this is needed because template dispatch may
-  // not recognize this is possible, e.g. C-enum to std::uint32_t in SGI MPT
-  MPI_Op op = static_cast<MPI_Op>(MPI_MAX);
-  return all_reduce(comm, value, op);
-#else
-  return value;
-#endif
-}
-//---------------------------------------------------------------------------
-template <typename T>
-T dolfin::MPI::min(MPI_Comm comm, const T& value)
-{
-#ifdef HAS_MPI
-  // Enforce cast to MPI_Op; this is needed because template dispatch may
-  // not recognize this is possible, e.g. C-enum to std::uint32_t in SGI MPT
-  MPI_Op op = static_cast<MPI_Op>(MPI_MIN);
-  return all_reduce(comm, value, op);
-#else
-  return value;
-#endif
-}
-//---------------------------------------------------------------------------
-template <typename T>
-T dolfin::MPI::sum(MPI_Comm comm, const T& value)
-{
-#ifdef HAS_MPI
-  // Enforce cast to MPI_Op; this is needed because template dispatch may
-  // not recognize this is possible, e.g. C-enum to std::uint32_t in SGI MPT
-  MPI_Op op = static_cast<MPI_Op>(MPI_SUM);
-  return all_reduce(comm, value, op);
-#else
-  return value;
-#endif
-}
-//---------------------------------------------------------------------------
-template <typename T>
-T dolfin::MPI::avg(MPI_Comm comm, const T& value)
-{
-#ifdef HAS_MPI
-  log::dolfin_error("MPI.h", "perform average reduction",
-               "Not implemented for this type");
-#else
-  return value;
-#endif
-}
-//---------------------------------------------------------------------------
+
 // Specialization for dolfin::log::Table class
 // NOTE: This function is not trully "all_reduce", it reduces to rank 0
 //       and returns zero Table on other ranks.

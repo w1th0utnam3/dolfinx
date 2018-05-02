@@ -736,32 +736,6 @@ void dolfin::MPI::scatter(MPI_Comm comm,
 #endif
 }
 //---------------------------------------------------------------------------
-namespace dolfin
-{
-template <>
-void MPI::scatter(MPI_Comm comm,
-                  const std::vector<std::vector<bool>>& in_values,
-                  std::vector<bool>& out_value, std::uint32_t sending_process)
-{
-#ifdef HAS_MPI
-  // Copy data
-  std::vector<std::vector<short int>> in(in_values.size());
-  for (std::size_t i = 0; i < in_values.size(); ++i)
-    in[i] = std::vector<short int>(in_values[i].begin(), in_values[i].end());
-
-  std::vector<short int> out;
-  scatter(comm, in, out, sending_process);
-
-  out_value.resize(out.size());
-  std::copy(out.begin(), out.end(), out_value.begin());
-#else
-  assert(sending_process == 0);
-  assert(in_values.size() == 1);
-  out_value = in_values[0];
-#endif
-}
-}
-//---------------------------------------------------------------------------
 template <typename T>
 void dolfin::MPI::scatter(MPI_Comm comm, const std::vector<T>& in_values,
                           T& out_value, std::uint32_t sending_process)
@@ -810,7 +784,69 @@ void dolfin::MPI::send_recv(MPI_Comm comm, const std::vector<T>& send_value,
 {
   MPI::send_recv(comm, send_value, dest, 0, recv_value, source, 0);
 }
-  //-----------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+template <typename T, typename X>
+T dolfin::MPI::all_reduce(MPI_Comm comm, const T& value, X op)
+{
+#ifdef HAS_MPI
+  T out;
+  MPI_Allreduce(const_cast<T*>(&value), &out, 1, mpi_type<T>(), op, comm);
+  return out;
+#else
+  return value;
+#endif
+}
+//---------------------------------------------------------------------------
+template <typename T>
+T dolfin::MPI::max(MPI_Comm comm, const T& value)
+{
+#ifdef HAS_MPI
+  // Enforce cast to MPI_Op; this is needed because template dispatch may
+  // not recognize this is possible, e.g. C-enum to std::uint32_t in SGI MPT
+  MPI_Op op = static_cast<MPI_Op>(MPI_MAX);
+  return all_reduce(comm, value, op);
+#else
+  return value;
+#endif
+}
+//---------------------------------------------------------------------------
+template <typename T>
+T dolfin::MPI::min(MPI_Comm comm, const T& value)
+{
+#ifdef HAS_MPI
+  // Enforce cast to MPI_Op; this is needed because template dispatch may
+  // not recognize this is possible, e.g. C-enum to std::uint32_t in SGI MPT
+  MPI_Op op = static_cast<MPI_Op>(MPI_MIN);
+  return all_reduce(comm, value, op);
+#else
+  return value;
+#endif
+}
+//---------------------------------------------------------------------------
+template <typename T>
+T dolfin::MPI::sum(MPI_Comm comm, const T& value)
+{
+#ifdef HAS_MPI
+  // Enforce cast to MPI_Op; this is needed because template dispatch may
+  // not recognize this is possible, e.g. C-enum to std::uint32_t in SGI MPT
+  MPI_Op op = static_cast<MPI_Op>(MPI_SUM);
+  return all_reduce(comm, value, op);
+#else
+  return value;
+#endif
+}
+//---------------------------------------------------------------------------
+template <typename T>
+T dolfin::MPI::avg(MPI_Comm comm, const T& value)
+{
+#ifdef HAS_MPI
+  log::dolfin_error("MPI.h", "perform average reduction",
+                    "Not implemented for this type");
+#else
+  return value;
+#endif
+}
+  //---------------------------------------------------------------------------
 
   // Explicit instantiations
 
@@ -863,3 +899,13 @@ template void
 dolfin::MPI::send_recv<std::size_t>(MPI_Comm, const std::vector<std::size_t>&,
                                     std::uint32_t, std::vector<std::size_t>&,
                                     std::uint32_t);
+
+#define REDUCTION_MACRO(TYPE)                                                  \
+  template TYPE dolfin::MPI::max<TYPE>(MPI_Comm, const TYPE&);                 \
+  template TYPE dolfin::MPI::min<TYPE>(MPI_Comm, const TYPE&);                 \
+  template TYPE dolfin::MPI::sum<TYPE>(MPI_Comm, const TYPE&);
+REDUCTION_MACRO(double)
+REDUCTION_MACRO(int)
+REDUCTION_MACRO(std::size_t)
+REDUCTION_MACRO(std::int64_t)
+#undef REDUCTION_MACRO
