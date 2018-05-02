@@ -105,7 +105,7 @@ void dolfin::MPI::Comm::reset(MPI_Comm comm)
 }
 //-----------------------------------------------------------------------------
 MPI_Comm dolfin::MPI::Comm::comm() const { return _comm; }
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
 
 #ifdef HAS_MPI
 //-----------------------------------------------------------------------------
@@ -334,3 +334,394 @@ MPI_Op dolfin::MPI::MPI_AVG()
 }
 #endif
 //-----------------------------------------------------------------------------
+template <typename T>
+void dolfin::MPI::broadcast(MPI_Comm comm, std::vector<T>& value,
+                            std::uint32_t broadcaster)
+{
+#ifdef HAS_MPI
+  // Broadcast cast size
+  std::size_t bsize = value.size();
+  MPI_Bcast(&bsize, 1, mpi_type<std::size_t>(), broadcaster, comm);
+
+  // Broadcast
+  value.resize(bsize);
+  MPI_Bcast(const_cast<T*>(value.data()), bsize, mpi_type<T>(), broadcaster,
+            comm);
+#endif
+}
+//---------------------------------------------------------------------------
+template <typename T>
+void dolfin::MPI::broadcast(MPI_Comm comm, T& value, std::uint32_t broadcaster)
+{
+#ifdef HAS_MPI
+  MPI_Bcast(&value, 1, mpi_type<T>(), broadcaster, comm);
+#endif
+}
+//-----------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+template <typename T>
+void dolfin::MPI::all_to_all(MPI_Comm comm,
+                             std::vector<std::vector<T>>& in_values,
+                             std::vector<std::vector<T>>& out_values)
+{
+#ifdef HAS_MPI
+  const std::size_t comm_size = MPI::size(comm);
+
+  // Data size per destination
+  assert(in_values.size() == comm_size);
+  std::vector<int> data_size_send(comm_size);
+  std::vector<int> data_offset_send(comm_size + 1, 0);
+  for (std::size_t p = 0; p < comm_size; ++p)
+  {
+    data_size_send[p] = in_values[p].size();
+    data_offset_send[p + 1] = data_offset_send[p] + data_size_send[p];
+  }
+
+  // Get received data sizes
+  std::vector<int> data_size_recv(comm_size);
+  MPI_Alltoall(data_size_send.data(), 1, mpi_type<int>(), data_size_recv.data(),
+               1, mpi_type<int>(), comm);
+
+  // Pack data and build receive offset
+  std::vector<int> data_offset_recv(comm_size + 1, 0);
+  std::vector<T> data_send(data_offset_send[comm_size]);
+  for (std::size_t p = 0; p < comm_size; ++p)
+  {
+    data_offset_recv[p + 1] = data_offset_recv[p] + data_size_recv[p];
+    std::copy(in_values[p].begin(), in_values[p].end(),
+              data_send.begin() + data_offset_send[p]);
+  }
+
+  // Send/receive data
+  std::vector<T> data_recv(data_offset_recv[comm_size]);
+  MPI_Alltoallv(data_send.data(), data_size_send.data(),
+                data_offset_send.data(), mpi_type<T>(), data_recv.data(),
+                data_size_recv.data(), data_offset_recv.data(), mpi_type<T>(),
+                comm);
+
+  // Repack data
+  out_values.resize(comm_size);
+  for (std::size_t p = 0; p < comm_size; ++p)
+  {
+    out_values[p].resize(data_size_recv[p]);
+    std::copy(data_recv.begin() + data_offset_recv[p],
+              data_recv.begin() + data_offset_recv[p + 1],
+              out_values[p].begin());
+  }
+#else
+  assert(in_values.size() == 1);
+  out_values = in_values;
+#endif
+}
+//---------------------------------------------------------------------------
+template <typename T>
+void dolfin::MPI::all_to_all(MPI_Comm comm,
+                             std::vector<std::vector<T>>& in_values,
+                             std::vector<T>& out_values)
+{
+#ifdef HAS_MPI
+  const std::size_t comm_size = MPI::size(comm);
+
+  // Data size per destination
+  assert(in_values.size() == comm_size);
+  std::vector<int> data_size_send(comm_size);
+  std::vector<int> data_offset_send(comm_size + 1, 0);
+  for (std::size_t p = 0; p < comm_size; ++p)
+  {
+    data_size_send[p] = in_values[p].size();
+    data_offset_send[p + 1] = data_offset_send[p] + data_size_send[p];
+  }
+
+  // Get received data sizes
+  std::vector<int> data_size_recv(comm_size);
+  MPI_Alltoall(data_size_send.data(), 1, mpi_type<int>(), data_size_recv.data(),
+               1, mpi_type<int>(), comm);
+
+  // Pack data and build receive offset
+  std::vector<int> data_offset_recv(comm_size + 1, 0);
+  std::vector<T> data_send(data_offset_send[comm_size]);
+  for (std::size_t p = 0; p < comm_size; ++p)
+  {
+    data_offset_recv[p + 1] = data_offset_recv[p] + data_size_recv[p];
+    std::copy(in_values[p].begin(), in_values[p].end(),
+              data_send.begin() + data_offset_send[p]);
+  }
+
+  // Send/receive data
+  out_values.resize(data_offset_recv[comm_size]);
+  MPI_Alltoallv(data_send.data(), data_size_send.data(),
+                data_offset_send.data(), mpi_type<T>(), out_values.data(),
+                data_size_recv.data(), data_offset_recv.data(), mpi_type<T>(),
+                comm);
+
+#else
+  assert(in_values.size() == 1);
+  out_values = in_values[0];
+#endif
+}
+//---------------------------------------------------------------------------
+// namespace dolfin
+// {
+// template <>
+// void dolfin::MPI::all_to_all(MPI_Comm comm,
+//                              std::vector<std::vector<bool>>& in_values,
+//                              std::vector<std::vector<bool>>& out_values)
+// {
+// #ifdef HAS_MPI
+//   // Copy to short int
+//   std::vector<std::vector<short int>> send(in_values.size());
+//   for (std::size_t i = 0; i < in_values.size(); ++i)
+//     send[i].assign(in_values[i].begin(), in_values[i].end());
+
+//   // Communicate data
+//   std::vector<std::vector<short int>> recv;
+//   all_to_all(comm, send, recv);
+
+//   // Copy back to bool
+//   out_values.resize(recv.size());
+//   for (std::size_t i = 0; i < recv.size(); ++i)
+//     out_values[i].assign(recv[i].begin(), recv[i].end());
+// #else
+//   assert(in_values.size() == 1);
+//   out_values = in_values;
+// #endif
+// }
+// //-----------------------------------------------------------------------------
+// template <>
+// void dolfin::MPI::all_to_all(MPI_Comm comm,
+//                              std::vector<std::vector<bool>>& in_values,
+//                              std::vector<bool>& out_values)
+// {
+// #ifdef HAS_MPI
+//   // Copy to short int
+//   std::vector<std::vector<short int>> send(in_values.size());
+//   for (std::size_t i = 0; i < in_values.size(); ++i)
+//     send[i].assign(in_values[i].begin(), in_values[i].end());
+
+//   // Communicate data
+//   std::vector<short int> recv;
+//   all_to_all(comm, send, recv);
+
+//   // Copy back to bool
+//   out_values.assign(recv.begin(), recv.end());
+// #else
+//   assert(in_values.size() == 1);
+//   out_values = in_values[0];
+// #endif
+// }
+// }
+// //---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+template <typename T>
+void dolfin::MPI::gather(MPI_Comm comm, const std::vector<T>& in_values,
+                         std::vector<T>& out_values,
+                         std::uint32_t receiving_process)
+{
+#ifdef HAS_MPI
+  const std::size_t comm_size = MPI::size(comm);
+
+  // Get data size on each process
+  std::vector<int> pcounts(comm_size);
+  const int local_size = in_values.size();
+  MPI_Gather(const_cast<int*>(&local_size), 1, mpi_type<int>(), pcounts.data(),
+             1, mpi_type<int>(), receiving_process, comm);
+
+  // Build offsets
+  std::vector<int> offsets(comm_size + 1, 0);
+  for (std::size_t i = 1; i <= comm_size; ++i)
+    offsets[i] = offsets[i - 1] + pcounts[i - 1];
+
+  const std::size_t n = std::accumulate(pcounts.begin(), pcounts.end(), 0);
+  out_values.resize(n);
+  MPI_Gatherv(const_cast<T*>(in_values.data()), in_values.size(), mpi_type<T>(),
+              out_values.data(), pcounts.data(), offsets.data(), mpi_type<T>(),
+              receiving_process, comm);
+#else
+  out_values = in_values;
+#endif
+}
+//---------------------------------------------------------------------------
+void dolfin::MPI::gather(MPI_Comm comm, const std::string& in_values,
+                         std::vector<std::string>& out_values,
+                         std::uint32_t receiving_process)
+{
+#ifdef HAS_MPI
+  const std::size_t comm_size = MPI::size(comm);
+
+  // Get data size on each process
+  std::vector<int> pcounts(comm_size);
+  int local_size = in_values.size();
+  MPI_Gather(&local_size, 1, MPI_INT, pcounts.data(), 1, MPI_INT,
+             receiving_process, comm);
+
+  // Build offsets
+  std::vector<int> offsets(comm_size + 1, 0);
+  for (std::size_t i = 1; i <= comm_size; ++i)
+    offsets[i] = offsets[i - 1] + pcounts[i - 1];
+
+  // Gather
+  const std::size_t n = std::accumulate(pcounts.begin(), pcounts.end(), 0);
+  std::vector<char> _out(n);
+  MPI_Gatherv(const_cast<char*>(in_values.data()), in_values.size(), MPI_CHAR,
+              _out.data(), pcounts.data(), offsets.data(), MPI_CHAR,
+              receiving_process, comm);
+
+  // Rebuild
+  out_values.resize(comm_size);
+  for (std::size_t p = 0; p < comm_size; ++p)
+  {
+    out_values[p]
+        = std::string(_out.begin() + offsets[p], _out.begin() + offsets[p + 1]);
+  }
+#else
+  out_values.clear();
+  out_values.push_back(in_values);
+#endif
+}
+//-----------------------------------------------------------------------------
+void dolfin::MPI::all_gather(MPI_Comm comm, const std::string& in_values,
+                             std::vector<std::string>& out_values)
+{
+#ifdef HAS_MPI
+  const std::size_t comm_size = MPI::size(comm);
+
+  // Get data size on each process
+  std::vector<int> pcounts(comm_size);
+  int local_size = in_values.size();
+  MPI_Allgather(&local_size, 1, MPI_INT, pcounts.data(), 1, MPI_INT, comm);
+
+  // Build offsets
+  std::vector<int> offsets(comm_size + 1, 0);
+  for (std::size_t i = 1; i <= comm_size; ++i)
+    offsets[i] = offsets[i - 1] + pcounts[i - 1];
+
+  // Gather
+  const std::size_t n = std::accumulate(pcounts.begin(), pcounts.end(), 0);
+  std::vector<char> _out(n);
+  MPI_Allgatherv(const_cast<char*>(in_values.data()), in_values.size(),
+                 MPI_CHAR, _out.data(), pcounts.data(), offsets.data(),
+                 MPI_CHAR, comm);
+
+  // Rebuild
+  out_values.resize(comm_size);
+  for (std::size_t p = 0; p < comm_size; ++p)
+  {
+    out_values[p]
+        = std::string(_out.begin() + offsets[p], _out.begin() + offsets[p + 1]);
+  }
+#else
+  out_values.clear();
+  out_values.push_back(in_values);
+#endif
+}
+//-------------------------------------------------------------------------
+template <typename T>
+void dolfin::MPI::all_gather(MPI_Comm comm, const std::vector<T>& in_values,
+                             std::vector<T>& out_values)
+{
+#ifdef HAS_MPI
+  out_values.resize(in_values.size() * MPI::size(comm));
+  MPI_Allgather(const_cast<T*>(in_values.data()), in_values.size(),
+                mpi_type<T>(), out_values.data(), in_values.size(),
+                mpi_type<T>(), comm);
+#else
+  out_values = in_values;
+#endif
+}
+//---------------------------------------------------------------------------
+template <typename T>
+void dolfin::MPI::all_gather(MPI_Comm comm, const std::vector<T>& in_values,
+                             std::vector<std::vector<T>>& out_values)
+{
+#ifdef HAS_MPI
+  const std::size_t comm_size = MPI::size(comm);
+
+  // Get data size on each process
+  std::vector<int> pcounts;
+  const int local_size = in_values.size();
+  MPI::all_gather(comm, local_size, pcounts);
+  assert(pcounts.size() == comm_size);
+
+  // Build offsets
+  std::vector<int> offsets(comm_size + 1, 0);
+  for (std::size_t i = 1; i <= comm_size; ++i)
+    offsets[i] = offsets[i - 1] + pcounts[i - 1];
+
+  // Gather data
+  const std::size_t n = std::accumulate(pcounts.begin(), pcounts.end(), 0);
+  std::vector<T> recvbuf(n);
+  MPI_Allgatherv(const_cast<T*>(in_values.data()), in_values.size(),
+                 mpi_type<T>(), recvbuf.data(), pcounts.data(), offsets.data(),
+                 mpi_type<T>(), comm);
+
+  // Repack data
+  out_values.resize(comm_size);
+  for (std::size_t p = 0; p < comm_size; ++p)
+  {
+    out_values[p].resize(pcounts[p]);
+    for (int i = 0; i < pcounts[p]; ++i)
+      out_values[p][i] = recvbuf[offsets[p] + i];
+  }
+#else
+  out_values.clear();
+  out_values.push_back(in_values);
+#endif
+}
+//---------------------------------------------------------------------------
+template <typename T>
+void dolfin::MPI::all_gather(MPI_Comm comm, const T in_value,
+                             std::vector<T>& out_values)
+{
+#ifdef HAS_MPI
+  out_values.resize(MPI::size(comm));
+  MPI_Allgather(const_cast<T*>(&in_value), 1, mpi_type<T>(), out_values.data(),
+                1, mpi_type<T>(), comm);
+#else
+  out_values.clear();
+  out_values.push_back(in_value);
+#endif
+}
+  //-----------------------------------------------------------------------------
+
+  // Explicit instantiations
+
+#define ALLGATHER_MACRO(TYPE)                                                  \
+  template void dolfin::MPI::all_gather<TYPE>(                                 \
+      MPI_Comm, const std::vector<TYPE>&, std::vector<TYPE>&);                 \
+  template void dolfin::MPI::all_gather<TYPE>(                                 \
+      MPI_Comm, const std::vector<TYPE>&, std::vector<std::vector<TYPE>>&);    \
+  template void dolfin::MPI::all_gather<TYPE>(MPI_Comm, const TYPE,            \
+                                              std::vector<TYPE>&);
+ALLGATHER_MACRO(std::size_t)
+ALLGATHER_MACRO(double)
+#undef ALLGATHER_MACRO
+
+template void dolfin::MPI::gather<std::size_t>(MPI_Comm,
+                                               const std::vector<std::size_t>&,
+                                               std::vector<std::size_t>&,
+                                               std::uint32_t receiving_process);
+
+template void dolfin::MPI::gather<int>(MPI_Comm, const std::vector<int>&,
+                                       std::vector<int>&,
+                                       std::uint32_t receiving_process);
+
+template void dolfin::MPI::broadcast<std::size_t>(MPI_Comm,
+                                                  std::vector<std::size_t>&,
+                                                  std::uint32_t);
+template void dolfin::MPI::broadcast<int>(MPI_Comm, std::vector<int>&,
+                                          std::uint32_t);
+template void dolfin::MPI::broadcast<std::size_t>(MPI_Comm, std::size_t&,
+                                                  std::uint32_t);
+
+#define ALLTOALL_MACRO(TYPE)                                                   \
+  template void dolfin::MPI::all_to_all<TYPE>(                                 \
+      MPI_Comm, std::vector<std::vector<TYPE>>&, std::vector<TYPE>&);          \
+  template void dolfin::MPI::all_to_all<TYPE>(                                 \
+      MPI_Comm, std::vector<std::vector<TYPE>>&,                               \
+      std::vector<std::vector<TYPE>>&);
+ALLTOALL_MACRO(double)
+ALLTOALL_MACRO(std::size_t)
+ALLTOALL_MACRO(std::int64_t)
+ALLTOALL_MACRO(std::int32_t)
+ALLTOALL_MACRO(std::uint32_t)
+#undef ALLTOALL_MACRO
