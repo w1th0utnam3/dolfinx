@@ -756,23 +756,29 @@ MeshPartitioning::distribute_points(
                  MPI_INFO_NULL, mpi_comm, &point_win);
   MPI_Win_fence(0, point_win);
 
+  std::vector<std::vector<std::size_t>> send_point_indices(mpi_size);
   std::vector<std::vector<std::uint32_t>> local_indexing(mpi_size);
   for (unsigned int i = 0; i != global_point_indices.size(); ++i)
   {
     const std::size_t required_point = global_point_indices[i];
-    const int location
-        = std::upper_bound(ranges.begin(), ranges.end(), required_point)
-          - ranges.begin() - 1;
-    MPI_Get(point_coordinates.row(i).data(), gdim, MPI_DOUBLE, location,
-            (required_point - ranges[location]) * gdim, gdim, MPI_DOUBLE,
-            point_win);
-    local_indexing[location].push_back(i);
+    const int p = std::upper_bound(ranges.begin(), ranges.end(), required_point)
+                  - ranges.begin() - 1;
+    send_point_indices[p].push_back(required_point);
+    local_indexing[p].push_back(i);
+    MPI_Get(point_coordinates.row(i).data(), gdim, MPI_DOUBLE, p,
+            (required_point - ranges[p]) * gdim, gdim, MPI_DOUBLE, point_win);
   }
 
   MPI_Win_fence(0, point_win);
   MPI_Win_free(&point_win);
 
+  // Calculate shared points
+  const std::size_t mpi_rank = MPI::rank(mpi_comm);
+  std::vector<std::vector<std::size_t>> received_point_indices(mpi_size);
+  MPI::all_to_all(mpi_comm, send_point_indices, received_point_indices);
   std::map<std::int32_t, std::set<std::uint32_t>> shared_points_local;
+  build_shared_points(mpi_comm, received_point_indices,
+                      {ranges[mpi_rank], ranges[mpi_rank + 1]}, local_indexing);
 
   return {std::move(point_coordinates), std::move(shared_points_local)};
 }
