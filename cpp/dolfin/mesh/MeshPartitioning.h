@@ -185,11 +185,11 @@ private:
                    const PartitionData& mp);
 
   // FIXME: Improve explanation
-  // Utility to convert received_point_indices into
+  // Utility to convert send_point_indices into
   // point sharing information
   static std::map<std::int32_t, std::set<std::uint32_t>> build_shared_points(
       MPI_Comm mpi_comm,
-      const std::vector<std::vector<std::size_t>>& received_point_indices,
+      const std::vector<std::vector<std::size_t>>& send_point_indices,
       const std::pair<std::size_t, std::size_t> local_point_range,
       const std::vector<std::vector<std::uint32_t>>& local_indexing);
 };

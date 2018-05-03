@@ -120,15 +120,13 @@ public:
   /// Send in_values[p0] to process p0 and receive values from
   /// process p1 in out_values[p1]
   template <typename T>
-  static void all_to_all(MPI_Comm comm,
-                         const std::vector<std::vector<T>>& in_values,
+  static void all_to_all(MPI_Comm comm, const std::vector<std::vector<T>>& in_values,
                          std::vector<std::vector<T>>& out_values);
 
   /// Send in_values[p0] to process p0 and receive values from
   /// all processes in out_values
   template <typename T>
-  static void all_to_all(MPI_Comm comm,
-                         const std::vector<std::vector<T>>& in_values,
+  static void all_to_all(MPI_Comm comm, const std::vector<std::vector<T>>& in_values,
                          std::vector<T>& out_values);
 
   /// Broadcast vector of value from broadcaster to all processes
@@ -338,9 +336,9 @@ void dolfin::MPI::broadcast(MPI_Comm comm, T& value, std::uint32_t broadcaster)
 //---------------------------------------------------------------------------
 #ifdef DOLFIN_MPI_USE_PUT_GET
 template <typename T>
-void dolfin::MPI::all_to_all_common(
-    MPI_Comm comm, const std::vector<std::vector<T>>& in_values,
-    std::vector<T>& out_values, std::vector<std::int32_t>& local_data_offsets)
+void dolfin::MPI::all_to_all(MPI_Comm comm,
+                             const std::vector<std::vector<T>>& in_values,
+                             std::vector<std::vector<T>>& out_values)
 {
   const std::size_t comm_size = MPI::size(comm);
   const std::size_t comm_rank = MPI::rank(comm);
@@ -409,9 +407,9 @@ void dolfin::MPI::all_to_all_common(
 #else
 // Implementation using MPI_alltoallv
 template <typename T>
-void dolfin::MPI::all_to_all_common(
-    MPI_Comm comm, const std::vector<std::vector<T>>& in_values,
-    std::vector<T>& out_values, std::vector<std::int32_t>& data_offset_recv)
+void dolfin::MPI::all_to_all(MPI_Comm comm,
+                             const std::vector<std::vector<T>>& in_values,
+                             std::vector<T>& out_values)
 {
   const std::size_t comm_size = MPI::size(comm);
 
@@ -490,10 +488,9 @@ void dolfin::MPI::all_to_all(MPI_Comm comm,
 //---------------------------------------------------------------------------
 #ifndef DOXYGEN_IGNORE
 template <>
-inline void
-dolfin::MPI::all_to_all(MPI_Comm comm,
-                        const std::vector<std::vector<bool>>& in_values,
-                        std::vector<std::vector<bool>>& out_values)
+inline void dolfin::MPI::all_to_all(MPI_Comm comm,
+                                    const std::vector<std::vector<bool>>& in_values,
+                                    std::vector<std::vector<bool>>& out_values)
 {
 #ifdef HAS_MPI
   // Copy to short int
@@ -516,10 +513,9 @@ dolfin::MPI::all_to_all(MPI_Comm comm,
 }
 
 template <>
-inline void
-dolfin::MPI::all_to_all(MPI_Comm comm,
-                        const std::vector<std::vector<bool>>& in_values,
-                        std::vector<bool>& out_values)
+inline void dolfin::MPI::all_to_all(MPI_Comm comm,
+                                    const std::vector<std::vector<bool>>& in_values,
+                                    std::vector<bool>& out_values)
 {
 #ifdef HAS_MPI
   // Copy to short int
