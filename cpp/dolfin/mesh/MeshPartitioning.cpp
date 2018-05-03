@@ -737,7 +737,7 @@ MeshPartitioning::distribute_points(
 
   // Get number of processes
   const int mpi_size = MPI::size(mpi_comm);
-  const int mpi_rank = MPI::rank(mpi_comm);
+  //  const int mpi_rank = MPI::rank(mpi_comm);
 
   // Get geometric dimension
   const int gdim = points.cols();
@@ -749,9 +749,13 @@ MeshPartitioning::distribute_points(
     ranges[i] += ranges[i - 1];
   ranges.insert(ranges.begin(), 0);
 
-  // Send global indices to the processes that own them, also recording
-  // in local_indexing the original position on this process
-  std::vector<std::vector<std::size_t>> send_point_indices(mpi_size);
+  // Create window to point data
+  MPI_Win point_win;
+  MPI_Win_create(const_cast<double*>(points.data()),
+                 sizeof(double) * points.rows() * points.cols(), sizeof(double),
+                 MPI_INFO_NULL, mpi_comm, &point_win);
+  MPI_Win_fence(0, point_win);
+
   std::vector<std::vector<std::uint32_t>> local_indexing(mpi_size);
   for (unsigned int i = 0; i != global_point_indices.size(); ++i)
   {
@@ -759,103 +763,16 @@ MeshPartitioning::distribute_points(
     const int location
         = std::upper_bound(ranges.begin(), ranges.end(), required_point)
           - ranges.begin() - 1;
-    send_point_indices[location].push_back(required_point);
+    MPI_Get(point_coordinates.row(i).data(), gdim, MPI_DOUBLE, location,
+            (required_point - ranges[location]) * gdim, gdim, MPI_DOUBLE,
+            point_win);
     local_indexing[location].push_back(i);
   }
 
-  // Each remote process will put the requested point coordinates into a
-  // block of memory on the local process.
-  // Calculate offset position for each process, and attach to the sending
-  // data
-  std::size_t offset = 0;
-  for (int i = 0; i != mpi_size; ++i)
-  {
-    send_point_indices[i].push_back(offset);
-    offset += (send_point_indices[i].size() - 1);
-  }
+  MPI_Win_fence(0, point_win);
+  MPI_Win_free(&point_win);
 
-  // Send required point indices to other processes, and receive
-  // point indices required by other processes.
-  std::vector<std::vector<std::size_t>> received_point_indices;
-  MPI::all_to_all(mpi_comm, send_point_indices, received_point_indices);
-
-  // Pop offsets off back of received data
-  std::vector<std::size_t> remote_offsets;
-  std::size_t num_received_indices = 0;
-  for (auto& p : received_point_indices)
-  {
-    remote_offsets.push_back(p.back());
-    p.pop_back();
-    num_received_indices += p.size();
-  }
-
-  // Pop offset off back of sending arrays too, achieving
-  // a clean transfer of the offset data from local to remote
-  for (auto& p : send_point_indices)
-    p.pop_back();
-
-  // Array to receive data into with RMA
-  // This is a block of memory which all remote processes can write into, by
-  // using the offset (and size) transferred in previous all_to_all.
-  EigenRowArrayXXd receive_coord_data(global_point_indices.size(), gdim);
-
-  // Create local RMA window
-  MPI_Win win;
-  MPI_Win_create(receive_coord_data.data(),
-                 sizeof(double) * global_point_indices.size() * gdim,
-                 sizeof(double), MPI_INFO_NULL, mpi_comm, &win);
-  MPI_Win_fence(0, win);
-
-  // This memory block is to read from, and must remain in place until the
-  // transfer is complete (after next MPI_Win_fence)
-  EigenRowArrayXXd send_coord_data(num_received_indices, gdim);
-
-  const std::pair<std::size_t, std::size_t> local_point_range
-      = {ranges[mpi_rank], ranges[mpi_rank + 1]};
-  // Convert global index to local index and put coordinate data in sending
-  // array
-  std::size_t local_index = 0;
-  for (int p = 0; p < mpi_size; ++p)
-  {
-    if (received_point_indices[p].size() > 0)
-    {
-      const std::size_t local_index_0 = local_index;
-      for (const auto& q : received_point_indices[p])
-      {
-        assert(q >= local_point_range.first && q < local_point_range.second);
-
-        const std::size_t location = q - local_point_range.first;
-        send_coord_data.row(local_index) = points.row(location);
-        ++local_index;
-      }
-
-      const std::size_t local_size = (local_index - local_index_0) * gdim;
-      MPI_Put(send_coord_data.data() + local_index_0 * gdim, local_size,
-              MPI_DOUBLE, p, remote_offsets[p] * gdim, local_size, MPI_DOUBLE,
-              win);
-    }
-  }
-
-  // Meanwhile, redistribute received_point_indices as point sharing
-  // information
-  const std::map<std::int32_t, std::set<std::uint32_t>> shared_points_local
-      = build_shared_points(mpi_comm, received_point_indices, local_point_range,
-                            local_indexing);
-
-  // Synchronise and free RMA window
-  MPI_Win_fence(0, win);
-  MPI_Win_free(&win);
-
-  // Reorder coordinates according to local indexing
-  local_index = 0;
-  for (const auto& p : local_indexing)
-  {
-    for (const auto& v : p)
-    {
-      point_coordinates.row(v) = receive_coord_data.row(local_index);
-      ++local_index;
-    }
-  }
+  std::map<std::int32_t, std::set<std::uint32_t>> shared_points_local;
 
   return {std::move(point_coordinates), std::move(shared_points_local)};
 }
