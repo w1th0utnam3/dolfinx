@@ -23,9 +23,9 @@ fe_1d_shapes = ["interval"]
 fe_2d_shapes = ["triangle"]
 fe_3d_shapes = ["tetrahedron"]
 fe_families = ["CG", "DG"]
-fe_degrees = [0, 1, 3]
+fe_degrees = [1, 2]
 mesh_tdims = [1, 2, 3]
-mesh_ns = [4, 7]
+mesh_ns = [5]
 
 # Meshes tested
 
