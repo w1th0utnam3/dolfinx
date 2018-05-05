@@ -25,7 +25,7 @@ jobs:
             pip3 install git+https://bitbucket.org/fenics-project/fiat.git --upgrade
             pip3 install git+https://bitbucket.org/fenics-project/ufl.git --upgrade
             pip3 install git+https://bitbucket.org/fenics-project/dijitso.git --upgrade
-            pip3 install git+https://github.com/fenics/ffcx.git --upgrade
+            pip3 install git+https://github.com/fenics/ffcx.git@chris/integrals-common-signature --upgrade
             rm -rf /usr/local/include/dolfin /usr/local/include/dolfin.h
       - run:
           name: Flake8 checks on Python code

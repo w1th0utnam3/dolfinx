@@ -372,7 +372,7 @@ void Assembler::assemble(la::PETScMatrix& A, const Form& a,
 
     // Compute cell matrix
     cell_integral->tabulate_tensor(Ae.data(), ufc.w(), coordinate_dofs.data(),
-                                   1);
+                                   NULL, 1);
 
     // FIXME: Pass in list  of cells, and list of local dofs, with
     // Dirichlet conditions
@@ -479,7 +479,7 @@ void Assembler::assemble(la::PETScVector& b, const Form& L)
 
     // Compute cell matrix
     cell_integral->tabulate_tensor(be.data(), ufc.w(), coordinate_dofs.data(),
-                                   1);
+                                   NULL, 1);
 
     // Add to vector
     // std::cout << "Adding to vector: " << be(0) << ", " << dmap[0] <<
@@ -573,7 +573,7 @@ void Assembler::apply_bc(la::PETScVector& b, const Form& a,
     Ae.resize(dmap0.size(), dmap1.size());
     Ae.setZero();
     cell_integral->tabulate_tensor(Ae.data(), ufc.w(), coordinate_dofs.data(),
-                                   1);
+                                   NULL, 1);
 
     // FIXME: Is this required?
     // Zero Dirichlet rows in Ae

@@ -46,12 +46,14 @@ public:
   std::shared_ptr<const ufc_cell_integral> cell_integral(unsigned int i) const;
 
   /// Get the function for 'tabulate_tensor' for cell integral i
-  const std::function<void(double*, const double* const*, const double*, int)>&
+  const std::function<void(double*, const double* const*, const double*,
+                           const int*, int)>&
   cell_tabulate_tensor(int i) const;
 
   /// Set the function for 'tabulate_tensor' for cell integral i
-  void set_cell_tabulate_tensor(int i, void (*fn)(double*, const double* const*,
-                                                  const double*, int));
+  void set_cell_tabulate_tensor(int i,
+                                void (*fn)(double*, const double* const*,
+                                           const double*, const int*, int));
 
   /// Number of integrals of given type
   int count(FormIntegrals::Type t) const;
@@ -96,8 +98,8 @@ private:
   std::vector<std::shared_ptr<ufc_cell_integral>> _cell_integrals;
 
   // Function pointers to cell tabulate_tensor functions
-  std::vector<
-      std::function<void(double*, const double* const*, const double*, int)>>
+  std::vector<std::function<void(double*, const double* const*, const double*,
+                                 const int*, int)>>
       _cell_tabulate_tensor;
 
   // Exterior facet integrals

@@ -33,7 +33,7 @@ void LocalAssembler::assemble(
   if (ufc.dolfin_form.integrals().num_exterior_facet_integrals() > 0
       or ufc.dolfin_form.integrals().num_interior_facet_integrals() > 0)
   {
-    unsigned int local_facet = 0;
+    int local_facet = 0;
     for (auto& facet : mesh::EntityRange<mesh::Facet>(cell))
     {
       cell.local_facet = local_facet;
@@ -110,14 +110,13 @@ void LocalAssembler::assemble_cell(
 
   // Tabulate cell tensor directly into A. This overwrites any
   // previous values
-  integral->tabulate_tensor(A.data(), ufc.w(), coordinate_dofs.data(), 1);
+  integral->tabulate_tensor(A.data(), ufc.w(), coordinate_dofs.data(), NULL, 1);
 }
 //------------------------------------------------------------------------------
 void LocalAssembler::assemble_exterior_facet(
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& A,
     UFC& ufc, const Eigen::Ref<const EigenRowArrayXXd>& coordinate_dofs,
-    const mesh::Cell& cell, const mesh::Facet& facet,
-    const std::size_t local_facet,
+    const mesh::Cell& cell, const mesh::Facet& facet, const int local_facet,
     const mesh::MeshFunction<std::size_t>* exterior_facet_domains)
 {
   // Skip if there are no exterior facet integrals
@@ -148,7 +147,7 @@ void LocalAssembler::assemble_exterior_facet(
   // into A since this will overwrite any previously assembled dx, ds
   // or dS forms
   integral->tabulate_tensor(ufc.A.data(), ufc.w(), coordinate_dofs.data(),
-                            local_facet, 1);
+                            &local_facet, 1);
 
   // Stuff a_ufc.A into A
   const std::size_t M = A.rows();
@@ -161,8 +160,7 @@ void LocalAssembler::assemble_exterior_facet(
 void LocalAssembler::assemble_interior_facet(
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& A,
     UFC& ufc, const Eigen::Ref<const EigenRowArrayXXd>& coordinate_dofs,
-    const mesh::Cell& cell, const mesh::Facet& facet,
-    const std::size_t local_facet,
+    const mesh::Cell& cell, const mesh::Facet& facet, const int local_facet,
     const mesh::MeshFunction<std::size_t>* interior_facet_domains,
     const mesh::MeshFunction<std::size_t>* cell_domains)
 {
@@ -216,7 +214,7 @@ void LocalAssembler::assemble_interior_facet(
   // Get information about the adjacent cell
   const mesh::Cell& cell_adj = local_is_plus ? cell1 : cell0;
   EigenRowArrayXXd coordinate_dofs_adj(cell_adj.num_vertices(), gdim);
-  std::size_t local_facet_adj = cell_adj.index(facet);
+  int local_facet_adj = cell_adj.index(facet);
   cell_adj.get_coordinate_dofs(coordinate_dofs_adj);
 
   // FIXME: The below is really messy, and the 'fix' to make it work
@@ -226,7 +224,7 @@ void LocalAssembler::assemble_interior_facet(
   // const EigenRowArrayXXd* coordinate_dofs1 = nullptr;
   EigenRowArrayXXd coordinate_dofs0;
   EigenRowArrayXXd coordinate_dofs1;
-  std::size_t local_facet0, local_facet1;
+  int local_facet0, local_facet1;
   if (local_is_plus)
   {
     // coordinate_dofs0 = &coordinate_dofs;
@@ -251,9 +249,10 @@ void LocalAssembler::assemble_interior_facet(
              integral->enabled_coefficients);
 
   // Tabulate interior facet tensor on macro element
+  int local_facets[2] = {local_facet0, local_facet1};
   integral->tabulate_tensor(ufc.macro_A.data(), ufc.macro_w(),
                             coordinate_dofs0.data(), coordinate_dofs1.data(),
-                            local_facet0, local_facet1, 1, 1);
+                            local_facets, 1, 1);
 
   // Stuff upper left quadrant (corresponding to cell_plus) or lower
   // left quadrant (corresponding to cell_minus) into A depending on
