@@ -2,15 +2,11 @@ version: 2
 jobs:
   build:
     docker:
-      - image: quay.io/fenicsproject/dolfinx:latest
+      - image: quay.io/fenicsproject/dolfinx:docker
     environment:
       MPLBACKEND: "agg"
       DOLFIN_NOPLOT: 1
       DEBIAN_FRONTEND: "noninteractive"
-      SLEPC_DIR: /usr/local/slepc-complex-32:$SLEPC_DIR
-      PETSC_DIR: /usr/local/petsc-complex-32:$PETSC_DIR
-      PETSC4PY_INCLUDE_DIRS: /usr/local/lib/python3.6/dist-packages/complex/petsc4py:$PETSC4PY_INCLUDE_DIRS
-      SLEPC4PY_INCLUDE_DIRS: /usr/local/lib/python3.6/dist-packages/complex/slepc4py:$SLEPC4PY_INCLUDE_DIRS
     steps:
       - checkout
       - run:
@@ -40,7 +36,11 @@ jobs:
           command: cd cpp/doc && doxygen
       - run:
           name: Configure DOLFIN (C++)
-          command: mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Developer ../cpp/
+          command: |
+              echo 'export SLEPC_DIR=/usr/local/slepc-complex-32' >> $BASH_ENV
+              echo 'export PETSC_DIR=/usr/local/petsc-complex-32' >> $BASH_ENV
+              source $BASH_ENV
+              mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Developer ../cpp/
       - run:
           name: Build DOLFIN and install (C++)
           command: cd build && make -j2 install
