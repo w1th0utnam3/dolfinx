@@ -7,10 +7,10 @@ jobs:
       MPLBACKEND: "agg"
       DOLFIN_NOPLOT: 1
       DEBIAN_FRONTEND: "noninteractive"
-      SLEPC_DIR: /usr/local/slepc-complex-32
-      PETSC_DIR: /usr/local/petsc-complex-32
-      PETSC4PY_INCLUDE_DIRS: /usr/local/lib/python3.6/dist-packages/complex/petsc4py
-      SLEPC4PY_INCLUDE_DIRS: /usr/local/lib/python3.6/dist-packages/complex/slepc4py
+      SLEPC_DIR: /usr/local/slepc-complex-32:$SLEPC_DIR
+      PETSC_DIR: /usr/local/petsc-complex-32:$PETSC_DIR
+      PETSC4PY_INCLUDE_DIRS: /usr/local/lib/python3.6/dist-packages/complex/petsc4py:$PETSC4PY_INCLUDE_DIRS
+      SLEPC4PY_INCLUDE_DIRS: /usr/local/lib/python3.6/dist-packages/complex/slepc4py:$SLEPC4PY_INCLUDE_DIRS
     steps:
       - checkout
       - run:
